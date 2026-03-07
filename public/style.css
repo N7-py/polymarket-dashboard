@@ -1618,6 +1618,36 @@ body::before {
   color: var(--text-muted);
 }
 
+/* BET direction banner */
+.bet-direction {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border: 1.5px solid;
+  border-radius: 12px;
+  transition: opacity var(--transition);
+}
+
+.bet-icon {
+  font-size: 1.3rem;
+  flex-shrink: 0;
+}
+
+.bet-label {
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  flex: 1;
+}
+
+.bet-prob {
+  font-size: 0.78rem;
+  font-weight: 600;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
 /* Pick footer */
 .pick-footer {
   display: flex;

@@ -327,6 +327,17 @@ function renderMyPicks(picks) {
   grid.style.display = 'grid'; empty.style.display = 'none';
   grid.innerHTML = picks.map(p => {
     const scoreW = Math.round(p.safetyScore);
+
+    // Determine BET direction label & styling
+    const outcome = (p.winningOutcome || 'Yes').trim();
+    const isYes = outcome.toLowerCase() === 'yes';
+    const isNo = outcome.toLowerCase() === 'no';
+    const betLabel = isYes ? 'BET YES' : isNo ? 'BET NO' : `BET: ${outcome}`;
+    const betIcon = isYes ? '✅' : isNo ? '❌' : '🎯';
+    const betBg = isYes ? 'rgba(0,212,170,0.12)' : isNo ? 'rgba(231,76,60,0.12)' : 'rgba(108,99,255,0.12)';
+    const betBorder = isYes ? 'rgba(0,212,170,0.4)' : isNo ? 'rgba(231,76,60,0.4)' : 'rgba(108,99,255,0.4)';
+    const betColor = isYes ? '#00d4aa' : isNo ? '#e74c3c' : '#6c63ff';
+
     return `
     <div class="pick-card" onclick="openMarket('${escHtml(p.url)}')" role="button" tabindex="0">
       <div class="pick-header">
@@ -338,14 +349,22 @@ function renderMyPicks(picks) {
           ${p.safetyScore}<span style="font-size:0.6rem;opacity:0.7">/100</span>
         </div>
       </div>
+
       <div class="pick-title">${escHtml(p.title)}</div>
-      <div class="pick-prob-row">
-        <span class="pick-prob-num" style="color:${escHtml(p.tierColor)}">${p.probability}%</span>
-        <div class="pick-prob-bar-wrap">
-          <div class="pick-prob-bar" style="width:${p.probability}%;background:${escHtml(p.tierColor)}"></div>
-        </div>
-        <span class="pick-outcome-lbl">${escHtml(p.winningOutcome)}</span>
+
+      <!-- BET DIRECTION — most prominent element -->
+      <div class="bet-direction" style="background:${betBg};border-color:${betBorder}">
+        <span class="bet-icon">${betIcon}</span>
+        <span class="bet-label" style="color:${betColor}">${escHtml(betLabel)}</span>
+        <span class="bet-prob" style="color:${betColor}">${p.probability}% probability</span>
       </div>
+
+      <div class="pick-prob-row">
+        <div class="pick-prob-bar-wrap" style="flex:1">
+          <div class="pick-prob-bar" style="width:${p.probability}%;background:${betColor}"></div>
+        </div>
+      </div>
+
       <div class="pick-score-row">
         <span class="pick-score-label">Safety Score</span>
         <div class="pick-score-track">
@@ -353,7 +372,9 @@ function renderMyPicks(picks) {
         </div>
         <span class="pick-score-val">${p.safetyScore}</span>
       </div>
+
       <div class="pick-reasoning">${escHtml(p.reasoning)}</div>
+
       <div class="pick-chips">
         <span class="pick-chip">💧 ${formatMoney(p.liquidity)}</span>
         <span class="pick-chip">📈 ${formatMoney(p.volume24h || p.volume)} vol</span>
