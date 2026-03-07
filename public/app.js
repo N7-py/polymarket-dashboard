@@ -15,58 +15,58 @@ let refreshTimer = null;
 
 // ─── Format helpers ─────────────────────────────────────────────────────────────
 function formatMoney(val) {
-    if (!val || isNaN(val)) return '—';
-    if (val >= 1_000_000) return '$' + (val / 1_000_000).toFixed(1) + 'M';
-    if (val >= 1_000) return '$' + (val / 1_000).toFixed(0) + 'K';
-    return '$' + val.toFixed(0);
+  if (!val || isNaN(val)) return '—';
+  if (val >= 1_000_000) return '$' + (val / 1_000_000).toFixed(1) + 'M';
+  if (val >= 1_000) return '$' + (val / 1_000).toFixed(0) + 'K';
+  return '$' + val.toFixed(0);
 }
 
 function formatDate(dateStr) {
-    if (!dateStr) return '—';
-    try {
-        const d = new Date(dateStr);
-        if (isNaN(d)) return '—';
-        const now = new Date();
-        const diff = d - now;
-        if (diff < 0) return 'Ended';
-        const days = Math.floor(diff / 86400000);
-        if (days === 0) return 'Today';
-        if (days === 1) return 'Tomorrow';
-        if (days < 7) return `${days}d left`;
-        if (days < 30) return `${Math.floor(days / 7)}w left`;
-        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    } catch { return '—'; }
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d)) return '—';
+    const now = new Date();
+    const diff = d - now;
+    if (diff < 0) return 'Ended';
+    const days = Math.floor(diff / 86400000);
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Tomorrow';
+    if (days < 7) return `${days}d left`;
+    if (days < 30) return `${Math.floor(days / 7)}w left`;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch { return '—'; }
 }
 
 function probColor(pct) {
-    if (pct >= 90) return '#00d4aa';
-    if (pct >= 80) return '#6c63ff';
-    if (pct >= 70) return '#f7931a';
-    return '#aaa';
+  if (pct >= 90) return '#00d4aa';
+  if (pct >= 80) return '#6c63ff';
+  if (pct >= 70) return '#f7931a';
+  return '#aaa';
 }
 
 function catLabel(cat) {
-    const labels = { crypto: '₿ Crypto', sports: '⚽ Sports', politics: '🏛️ Politics', finance: '📈 Finance', technology: '💻 Technology', other: '🔮 Other' };
-    return labels[cat] || cat;
+  const labels = { crypto: '₿ Crypto', sports: '⚽ Sports', politics: '🏛️ Politics', finance: '📈 Finance', technology: '💻 Technology', other: '🔮 Other' };
+  return labels[cat] || cat;
 }
 
 // ─── Render markets ─────────────────────────────────────────────────────────────
 function renderMarkets(markets) {
-    const grid = document.getElementById('marketsGrid');
-    const empty = document.getElementById('emptyState');
+  const grid = document.getElementById('marketsGrid');
+  const empty = document.getElementById('emptyState');
 
-    if (!markets || markets.length === 0) {
-        grid.style.display = 'none';
-        empty.style.display = 'block';
-        return;
-    }
+  if (!markets || markets.length === 0) {
+    grid.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
 
-    grid.style.display = 'grid';
-    empty.style.display = 'none';
+  grid.style.display = 'grid';
+  empty.style.display = 'none';
 
-    grid.innerHTML = markets.map(m => {
-        const color = probColor(m.probability);
-        return `
+  grid.innerHTML = markets.map(m => {
+    const color = probColor(m.probability);
+    return `
     <div class="market-card cat-${m.category}" onclick="openMarket('${escHtml(m.url)}')" role="button" tabindex="0" aria-label="Open ${escHtml(m.title)} on Polymarket">
       <div class="card-top">
         <div class="card-title">${escHtml(m.title)}</div>
@@ -109,100 +109,109 @@ function renderMarkets(markets) {
         <span class="open-link">Open on Polymarket ↗</span>
       </div>
     </div>`;
-    }).join('');
+  }).join('');
 }
 
 function openMarket(url) {
-    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  if (url) window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 function escHtml(str) {
-    if (!str) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ─── Filter & search ─────────────────────────────────────────────────────────────
 function applyFilters() {
-    let result = allMarkets;
-    if (currentCategory !== 'all') {
-        result = result.filter(m => m.category === currentCategory);
-    }
-    if (searchQuery) {
-        const q = searchQuery.toLowerCase();
-        result = result.filter(m => m.title.toLowerCase().includes(q) || m.category.toLowerCase().includes(q));
-    }
-    renderMarkets(result);
+  let result = allMarkets;
+  if (currentCategory !== 'all') {
+    result = result.filter(m => m.category === currentCategory);
+  }
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    result = result.filter(m => m.title.toLowerCase().includes(q) || m.category.toLowerCase().includes(q));
+  }
+  renderMarkets(result);
 }
 
 // ─── Fetch markets from backend ─────────────────────────────────────────────────
 async function loadMarkets() {
-    try {
-        const res = await fetch(`${API_BASE}/api/markets`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (!data.success) throw new Error(data.error || 'API error');
+  try {
+    const res = await fetch(`${API_BASE}/api/markets`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'API error');
 
-        allMarkets = data.markets || [];
+    allMarkets = data.markets || [];
 
-        // Update UI counters
-        document.getElementById('totalCount').textContent = `${data.count} markets ≥70%`;
-        const upd = data.lastUpdated ? new Date(data.lastUpdated).toLocaleTimeString() : '—';
-        document.getElementById('lastUpdated').textContent = `Last updated: ${upd}`;
+    // Update UI counters
+    document.getElementById('totalCount').textContent = `${data.count} markets ≥70%`;
+    const upd = data.lastUpdated ? new Date(data.lastUpdated).toLocaleTimeString() : '—';
+    document.getElementById('lastUpdated').textContent = `Last updated: ${upd}`;
 
-        applyFilters();
-    } catch (err) {
-        console.error('Failed to load markets:', err);
-        document.getElementById('marketsGrid').innerHTML = `
+    applyFilters();
+  } catch (err) {
+    console.error('Failed to load markets:', err);
+    document.getElementById('marketsGrid').innerHTML = `
       <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">
         <p style="font-size:2rem;margin-bottom:12px">⚠️</p>
         <p>Could not fetch markets. Retrying…</p>
         <p style="font-size:0.78rem;margin-top:8px;color:var(--text-dim)">${err.message}</p>
       </div>`;
-    }
+  }
 }
 
 // ─── Fetch leaderboard ─────────────────────────────────────────────────────────
 async function loadLeaderboard() {
-    try {
-        const res = await fetch(`${API_BASE}/api/leaderboard`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        const users = data.leaderboard || [];
-        renderLeaderboard(users);
-    } catch (err) {
-        console.error('Leaderboard error:', err);
-        document.getElementById('leaderboardBody').innerHTML = `<tr><td colspan="5" class="loading-row">Could not load leaderboard</td></tr>`;
-    }
+  try {
+    const res = await fetch(`${API_BASE}/api/leaderboard`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const users = data.leaderboard || [];
+    renderLeaderboard(users);
+  } catch (err) {
+    console.error('Leaderboard error:', err);
+    document.getElementById('leaderboardBody').innerHTML = `<tr><td colspan="5" class="loading-row">Could not load leaderboard</td></tr>`;
+  }
 }
 
 function renderLeaderboard(users) {
-    const tbody = document.getElementById('leaderboardBody');
-    if (!users || users.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="loading-row">No leaderboard data available</td></tr>`;
-        return;
-    }
+  const tbody = document.getElementById('leaderboardBody');
+  if (!users || users.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="loading-row">No leaderboard data available</td></tr>`;
+    return;
+  }
 
-    const rankMedals = ['🥇', '🥈', '🥉'];
-    tbody.innerHTML = users.map(u => {
-        const rankClass = u.rank <= 3 ? `rank-${u.rank}` : 'rank-other';
-        const rankDisplay = u.rank <= 3 ? rankMedals[u.rank - 1] : `#${u.rank}`;
-        const initials = (u.name || 'U').slice(0, 2).toUpperCase();
-        const pct = Math.min(100, Math.max(0, u.percentPositive));
+  const rankMedals = ['🥇', '🥈', '🥉'];
+  let html = '';
 
-        return `
-    <tr>
+  users.forEach(u => {
+    const rankClass = u.rank <= 3 ? `rank-${u.rank}` : 'rank-other';
+    const rankDisplay = u.rank <= 3 ? rankMedals[u.rank - 1] : `#${u.rank}`;
+    const initials = (u.name || 'U').slice(0, 2).toUpperCase();
+    const pct = Math.min(100, Math.max(0, u.percentPositive));
+    const hasProfile = !!u.profileUrl;
+    const hasPositions = u.positions && u.positions.length > 0;
+    const rowId = `trader-row-${u.rank}`;
+    const panelId = `pred-panel-${u.rank}`;
+
+    html += `
+    <tr class="trader-main-row ${hasProfile ? 'clickable-row' : ''}"
+        id="${rowId}"
+        onclick="traderRowClick(event, '${escHtml(u.profileUrl || '')}', '${panelId}')"
+        title="${hasProfile ? 'Click to open Polymarket profile' : ''}">
       <td class="rank-cell ${rankClass}">${rankDisplay}</td>
       <td>
         <div class="trader-cell">
           <div class="trader-avatar">${initials}</div>
           <div>
-            <div class="trader-name">${escHtml(u.name)}</div>
-            ${u.address && u.address !== '0x...' ? `<div class="trader-addr">${u.address.slice(0, 8)}…${u.address.slice(-4)}</div>` : ''}
+            <div class="trader-name ${hasProfile ? 'trader-link' : ''}">${escHtml(u.name)}</div>
+            ${u.address ? `<div class="trader-addr">${u.address.slice(0, 8)}…${u.address.slice(-4)}</div>` : ''}
           </div>
         </div>
       </td>
@@ -214,39 +223,94 @@ function renderLeaderboard(users) {
         </div>
       </td>
       <td>${u.tradesCount > 0 ? u.tradesCount.toLocaleString() : '—'}</td>
+      <td class="expand-cell">
+        ${hasPositions
+        ? `<button class="expand-btn" onclick="togglePredictions(event,'${panelId}')" title="View upcoming predictions">
+               <span class="expand-icon" id="icon-${panelId}">▶</span>
+             </button>`
+        : '<span class="no-pos-badge">No open positions</span>'
+      }
+      </td>
     </tr>`;
-    }).join('');
+
+    // Upcoming predictions expandable panel row
+    if (hasPositions) {
+      html += `
+      <tr class="pred-panel-row" id="${panelId}" style="display:none">
+        <td colspan="6" class="pred-panel-cell">
+          <div class="pred-panel">
+            <div class="pred-panel-title">📌 Upcoming Predictions by ${escHtml(u.name)}</div>
+            <div class="pred-list">
+              ${u.positions.map(p => `
+              <div class="pred-item ${p.pnl >= 0 ? 'pred-pos' : 'pred-neg'}"
+                   onclick="${p.marketUrl ? `openMarket('${escHtml(p.marketUrl)}')` : ''}"
+                   ${p.marketUrl ? 'style="cursor:pointer"' : ''}>
+                <div class="pred-market-title">${escHtml(p.market)}</div>
+                <div class="pred-meta">
+                  <span class="pred-outcome-badge">${escHtml(p.outcome)}</span>
+                  ${p.size ? `<span class="pred-size">$${p.size.toFixed(2)} position</span>` : ''}
+                  ${p.curPrice ? `<span class="pred-price">@ ${(p.curPrice * 100).toFixed(1)}%</span>` : ''}
+                  ${p.pnl !== 0 ? `<span class="pred-pnl ${p.pnl >= 0 ? 'pnl-pos' : 'pnl-neg'}">
+                    ${p.pnl >= 0 ? '+' : ''}$${Math.abs(p.pnl).toFixed(2)} P&amp;L
+                  </span>` : ''}
+                </div>
+              </div>`).join('')}
+            </div>
+          </div>
+        </td>
+      </tr>`;
+    }
+  });
+
+  tbody.innerHTML = html;
 }
+
+function traderRowClick(event, profileUrl, panelId) {
+  // If clicking the expand button, don't navigate to profile
+  if (event.target.closest('.expand-btn')) return;
+  if (profileUrl) window.open(profileUrl, '_blank', 'noopener,noreferrer');
+}
+
+function togglePredictions(event, panelId) {
+  event.stopPropagation();
+  const panel = document.getElementById(panelId);
+  const icon = document.getElementById('icon-' + panelId);
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'table-row';
+  if (icon) icon.textContent = isOpen ? '▶' : '▼';
+}
+
 
 // ─── Countdown & auto-refresh ───────────────────────────────────────────────────
 function startRefreshCycle() {
-    secondsLeft = REFRESH_INTERVAL;
-    updateCountdown();
+  secondsLeft = REFRESH_INTERVAL;
+  updateCountdown();
 
-    if (countdownTimer) clearInterval(countdownTimer);
-    countdownTimer = setInterval(() => {
-        secondsLeft--;
-        if (secondsLeft <= 0) {
-            secondsLeft = REFRESH_INTERVAL;
-            loadMarkets();
-        }
-        updateCountdown();
-    }, 1000);
+  if (countdownTimer) clearInterval(countdownTimer);
+  countdownTimer = setInterval(() => {
+    secondsLeft--;
+    if (secondsLeft <= 0) {
+      secondsLeft = REFRESH_INTERVAL;
+      loadMarkets();
+    }
+    updateCountdown();
+  }, 1000);
 }
 
 function updateCountdown() {
-    const el = document.getElementById('refreshCountdown');
-    if (el) el.textContent = `${secondsLeft}s`;
+  const el = document.getElementById('refreshCountdown');
+  if (el) el.textContent = `${secondsLeft}s`;
 }
 
 // ─── Category tabs ──────────────────────────────────────────────────────────────
 document.getElementById('categoryTabs').addEventListener('click', e => {
-    const tab = e.target.closest('.tab');
-    if (!tab) return;
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    currentCategory = tab.dataset.cat;
-    applyFilters();
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  currentCategory = tab.dataset.cat;
+  applyFilters();
 });
 
 // ─── Search ─────────────────────────────────────────────────────────────────────
@@ -255,32 +319,32 @@ const searchClear = document.getElementById('searchClear');
 let searchDebounce = null;
 
 searchInput.addEventListener('input', () => {
-    searchQuery = searchInput.value.trim();
-    searchClear.style.display = searchQuery ? 'block' : 'none';
-    clearTimeout(searchDebounce);
-    searchDebounce = setTimeout(applyFilters, 200);
+  searchQuery = searchInput.value.trim();
+  searchClear.style.display = searchQuery ? 'block' : 'none';
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(applyFilters, 200);
 });
 
 searchClear.addEventListener('click', () => {
-    searchInput.value = '';
-    searchQuery = '';
-    searchClear.style.display = 'none';
-    applyFilters();
-    searchInput.focus();
+  searchInput.value = '';
+  searchQuery = '';
+  searchClear.style.display = 'none';
+  applyFilters();
+  searchInput.focus();
 });
 
 // Keyboard: press Escape to clear search
 document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && document.activeElement === searchInput) {
-        searchInput.value = '';
-        searchQuery = '';
-        searchClear.style.display = 'none';
-        applyFilters();
-    }
+  if (e.key === 'Escape' && document.activeElement === searchInput) {
+    searchInput.value = '';
+    searchQuery = '';
+    searchClear.style.display = 'none';
+    applyFilters();
+  }
 });
 
 // ─── Init ───────────────────────────────────────────────────────────────────────
 (async function init() {
-    await Promise.all([loadMarkets(), loadLeaderboard()]);
-    startRefreshCycle();
+  await Promise.all([loadMarkets(), loadLeaderboard()]);
+  startRefreshCycle();
 })();

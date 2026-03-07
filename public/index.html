@@ -1,15 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PolyRadar — Prediction Markets Scanner</title>
-  <meta name="description" content="Real-time scanner for Polymarket prediction markets with ≥70% probability. Filter by category, search, and track top predictors." />
+  <meta name="description"
+    content="Real-time scanner for Polymarket prediction markets with ≥70% probability. Filter by category, search, and track top predictors." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
 
   <!-- ── HEADER ─────────────────────────────────────────────────────── -->
@@ -34,7 +38,8 @@
   <section class="hero">
     <div class="hero-inner">
       <h1 class="hero-title">Markets with <span class="highlight">≥70%</span> Confidence</h1>
-      <p class="hero-subtitle">Real-time scan of Polymarket · Sorted by highest probability · Updated every 60 seconds</p>
+      <p class="hero-subtitle">Real-time scan of Polymarket · Sorted by highest probability · Updated every 60 seconds
+      </p>
 
       <!-- Search -->
       <div class="search-wrap">
@@ -97,10 +102,13 @@
             <th>All-Time Profit</th>
             <th>Win Rate</th>
             <th>Trades</th>
+            <th>Predictions</th>
           </tr>
         </thead>
         <tbody id="leaderboardBody">
-          <tr><td colspan="5" class="loading-row">Loading leaderboard…</td></tr>
+          <tr>
+            <td colspan="5" class="loading-row">Loading leaderboard…</td>
+          </tr>
         </tbody>
       </table>
     </div>
@@ -109,9 +117,11 @@
 
   <!-- ── FOOTER ─────────────────────────────────────────────────────── -->
   <footer class="footer">
-    <p>Data sourced from <a href="https://polymarket.com" target="_blank" rel="noreferrer">Polymarket</a> public API · Not financial advice</p>
+    <p>Data sourced from <a href="https://polymarket.com" target="_blank" rel="noreferrer">Polymarket</a> public API ·
+      Not financial advice</p>
   </footer>
 
   <script src="app.js"></script>
 </body>
+
 </html>

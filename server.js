@@ -117,10 +117,33 @@ async function fetchMarkets() {
   }
 }
 
+// ─── Fetch open positions for a single trader ─────────────────────────────────
+async function fetchTraderPositions(address) {
+  if (!address || address === '0x...') return [];
+  try {
+    const res = await axios.get('https://data-api.polymarket.com/positions', {
+      params: { user: address, sizeThreshold: 0.01, limit: 5 },
+      timeout: 10000,
+      headers: { 'Accept': 'application/json' }
+    });
+    const rows = Array.isArray(res.data) ? res.data : (res.data.data || []);
+    return rows.slice(0, 5).map(p => ({
+      market: p.title || p.market || p.question || 'Unknown Market',
+      outcome: p.outcome || p.side || 'Yes',
+      size: parseFloat(p.size) || parseFloat(p.currentValue) || 0,
+      avgPrice: parseFloat(p.avgPrice) || parseFloat(p.averagePrice) || 0,
+      curPrice: parseFloat(p.curPrice) || parseFloat(p.currentPrice) || 0,
+      pnl: parseFloat(p.cashPnl) || parseFloat(p.pnl) || 0,
+      marketUrl: p.market ? `https://polymarket.com/event/${p.market}` : null,
+    }));
+  } catch (e) {
+    return [];
+  }
+}
+
 // ─── Fetch leaderboard ────────────────────────────────────────────────────────
 async function fetchLeaderboard() {
   try {
-    // Correct endpoint: /v1/leaderboard with timePeriod and orderBy params
     const response = await axios.get('https://data-api.polymarket.com/v1/leaderboard', {
       params: { category: 'OVERALL', timePeriod: 'ALL', orderBy: 'PNL', limit: 20 },
       timeout: 15000,
@@ -128,21 +151,31 @@ async function fetchLeaderboard() {
     });
 
     const data = response.data;
-    // API returns { data: [...] } or directly an array
     const rankings = Array.isArray(data) ? data : (data.data || data.leaderboard || data.rankings || []);
-
     if (rankings.length === 0) return buildMockLeaderboard();
 
-    return rankings.slice(0, 10).map((u, idx) => ({
-      rank: idx + 1,
-      address: u.address || u.proxyWallet || '',
-      name: u.name || u.pseudonym || u.username || shortenAddress(u.address || u.proxyWallet || ''),
-      avatar: u.profileImage || u.pfpUrl || u.avatar || null,
-      pnl: parseFloat(u.pnl) || parseFloat(u.profit) || 0,
-      profit: parseFloat(u.pnl) || parseFloat(u.profit) || 0,
-      tradesCount: parseInt(u.numTrades) || parseInt(u.tradesCount) || 0,
-      percentPositive: parseFloat(u.percentPositive) || 0,
-    }));
+    const top10 = rankings.slice(0, 10);
+
+    // Fetch positions for all top-10 traders in parallel
+    const positionsArr = await Promise.all(
+      top10.map(u => fetchTraderPositions(u.address || u.proxyWallet || ''))
+    );
+
+    return top10.map((u, idx) => {
+      const address = u.address || u.proxyWallet || '';
+      return {
+        rank: idx + 1,
+        address,
+        name: u.name || u.pseudonym || u.username || shortenAddress(address),
+        avatar: u.profileImage || u.pfpUrl || u.avatar || null,
+        pnl: parseFloat(u.pnl) || parseFloat(u.profit) || 0,
+        profit: parseFloat(u.pnl) || parseFloat(u.profit) || 0,
+        tradesCount: parseInt(u.numTrades) || parseInt(u.tradesCount) || 0,
+        percentPositive: parseFloat(u.percentPositive) || 0,
+        profileUrl: address ? `https://polymarket.com/profile/${address}` : null,
+        positions: positionsArr[idx] || [],
+      };
+    });
   } catch (err) {
     console.error('Error fetching leaderboard:', err.message);
     return buildMockLeaderboard();
@@ -151,16 +184,16 @@ async function fetchLeaderboard() {
 
 function buildMockLeaderboard() {
   return [
-    { rank: 1, address: '0x...', name: 'PredictionKing', pnl: 128450, profit: 128450, tradesCount: 342, percentPositive: 78.3 },
-    { rank: 2, address: '0x...', name: 'MarketWizard', pnl: 98210, profit: 98210, tradesCount: 215, percentPositive: 74.1 },
-    { rank: 3, address: '0x...', name: 'Polymaster', pnl: 76890, profit: 76890, tradesCount: 189, percentPositive: 71.5 },
-    { rank: 4, address: '0x...', name: 'OddsHunter', pnl: 54320, profit: 54320, tradesCount: 156, percentPositive: 68.9 },
-    { rank: 5, address: '0x...', name: 'ProbabilityPro', pnl: 43100, profit: 43100, tradesCount: 124, percentPositive: 66.2 },
-    { rank: 6, address: '0x...', name: 'FutureSeer', pnl: 38750, profit: 38750, tradesCount: 98, percentPositive: 64.8 },
-    { rank: 7, address: '0x...', name: 'CryptoOracle', pnl: 29400, profit: 29400, tradesCount: 87, percentPositive: 63.1 },
-    { rank: 8, address: '0x...', name: 'BetStrategist', pnl: 22100, profit: 22100, tradesCount: 76, percentPositive: 61.5 },
-    { rank: 9, address: '0x...', name: 'MarketMaker99', pnl: 18900, profit: 18900, tradesCount: 65, percentPositive: 59.8 },
-    { rank: 10, address: '0x...', name: 'SharpTrader', pnl: 15600, profit: 15600, tradesCount: 54, percentPositive: 58.3 },
+    { rank: 1, address: '', name: 'PredictionKing', pnl: 128450, profit: 128450, tradesCount: 342, percentPositive: 78.3, profileUrl: null, positions: [] },
+    { rank: 2, address: '', name: 'MarketWizard', pnl: 98210, profit: 98210, tradesCount: 215, percentPositive: 74.1, profileUrl: null, positions: [] },
+    { rank: 3, address: '', name: 'Polymaster', pnl: 76890, profit: 76890, tradesCount: 189, percentPositive: 71.5, profileUrl: null, positions: [] },
+    { rank: 4, address: '', name: 'OddsHunter', pnl: 54320, profit: 54320, tradesCount: 156, percentPositive: 68.9, profileUrl: null, positions: [] },
+    { rank: 5, address: '', name: 'ProbPro', pnl: 43100, profit: 43100, tradesCount: 124, percentPositive: 66.2, profileUrl: null, positions: [] },
+    { rank: 6, address: '', name: 'FutureSeer', pnl: 38750, profit: 38750, tradesCount: 98, percentPositive: 64.8, profileUrl: null, positions: [] },
+    { rank: 7, address: '', name: 'CryptoOracle', pnl: 29400, profit: 29400, tradesCount: 87, percentPositive: 63.1, profileUrl: null, positions: [] },
+    { rank: 8, address: '', name: 'BetStrategist', pnl: 22100, profit: 22100, tradesCount: 76, percentPositive: 61.5, profileUrl: null, positions: [] },
+    { rank: 9, address: '', name: 'MarketMaker99', pnl: 18900, profit: 18900, tradesCount: 65, percentPositive: 59.8, profileUrl: null, positions: [] },
+    { rank: 10, address: '', name: 'SharpTrader', pnl: 15600, profit: 15600, tradesCount: 54, percentPositive: 58.3, profileUrl: null, positions: [] },
   ];
 }
 
@@ -218,6 +251,16 @@ app.get('/api/leaderboard', async (req, res) => {
   try {
     await refreshCache();
     res.json({ success: true, leaderboard: leaderboardCache });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// On-demand positions for a single trader
+app.get('/api/trader/:address/positions', async (req, res) => {
+  try {
+    const positions = await fetchTraderPositions(req.params.address);
+    res.json({ success: true, positions });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
