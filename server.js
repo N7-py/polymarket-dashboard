@@ -157,14 +157,15 @@ async function fetchLeaderboard(timePeriod = 'ALL', category = 'OVERALL') {
 
     return top10.map((u, idx) => {
       const address = u.address || u.proxyWallet || '';
-      // Polymarket API: name is in 'name', fallback to 'pseudonym', then shorten address
-      const displayName = u.name && u.name.trim() && u.name !== address
-        ? u.name
-        : (u.pseudonym && u.pseudonym.trim() ? u.pseudonym : shortenAddress(address));
+      // Favor name, then pseudonym, then shortened address
+      const pseudo = u.pseudonym && u.pseudonym.trim() ? u.pseudonym : null;
+      let dispName = u.name && u.name.trim() !== address ? u.name : null;
+      if (!dispName) dispName = pseudo || shortenAddress(address);
+
       return {
         rank: idx + 1,
         address,
-        name: displayName,
+        name: dispName,
         avatar: u.profileImage || u.pfpUrl || u.avatar || null,
         pnl: parseFloat(u.pnl) || parseFloat(u.profit) || 0,
         profit: parseFloat(u.pnl) || parseFloat(u.profit) || 0,
@@ -211,7 +212,7 @@ function shortenAddress(addr) {
  * 5. Markets held by 2+ streak traders = "Smart Money Pick"
  * 6. Sort by endorser count, then by collective avg position size
  */
-async function fetchSmartPicks(topTradersCount = 10) {
+async function fetchSmartPicks(topTradersCount = 10, timeline = 'all') {
   try {
     // Step 1: Get top traders by PNL
     // Limit to 25 just to be safe, but we'll slice by topTradersCount
@@ -226,12 +227,19 @@ async function fetchSmartPicks(topTradersCount = 10) {
 
     // Step 2: Format top traders (win rate/trades count no longer exist on this API)
     const topTraders = rankings
-      .map(u => ({
-        address: u.address || u.proxyWallet || '',
-        name: (u.name && u.name !== (u.address || u.proxyWallet)) ? u.name : (u.pseudonym || shortenAddress(u.address || u.proxyWallet || 'Anon')),
-        pnl: parseFloat(u.pnl) || 0,
-        profileUrl: (u.address || u.proxyWallet) ? `https://polymarket.com/profile/${u.address || u.proxyWallet}` : null,
-      }))
+      .map(u => {
+        const addr = u.address || u.proxyWallet || '';
+        const pseudo = u.pseudonym && u.pseudonym.trim() ? u.pseudonym : null;
+        let dispName = u.name && u.name.trim() !== addr ? u.name : null;
+        if (!dispName) dispName = pseudo || shortenAddress(addr);
+
+        return {
+          address: addr,
+          name: dispName,
+          pnl: parseFloat(u.pnl) || 0,
+          profileUrl: addr ? `https://polymarket.com/profile/${addr}` : null,
+        };
+      })
       .filter(u => u.address)             // must have a real address
       .slice(0, Math.min(topTradersCount, 25)); // cap at selected amount
 
@@ -239,7 +247,7 @@ async function fetchSmartPicks(topTradersCount = 10) {
 
     // Step 3: Fetch positions for these top traders in parallel
     const positionResults = await Promise.allSettled(
-      topTraders.map(u => fetchStreakPositions(u.address))
+      topTraders.map(u => fetchStreakPositions(u.address, timeline))
     );
 
     // Step 4: Aggregate by market — count how many traders share each market
@@ -298,15 +306,18 @@ async function fetchSmartPicks(topTradersCount = 10) {
 }
 
 // Fetches positions for smart-picks (no limit, all open positions with positive value)
-async function fetchStreakPositions(address) {
+async function fetchStreakPositions(address, timeline = 'all') {
   if (!address) return [];
   try {
     const res = await axios.get('https://data-api.polymarket.com/positions', {
-      params: { user: address, sizeThreshold: 0.01, limit: 20 },
+      params: { user: address, sizeThreshold: 0.01, limit: 100 },
       timeout: 10000, headers: { Accept: 'application/json' }
     });
     const rows = Array.isArray(res.data) ? res.data : (res.data.data || []);
-    return rows.map(p => ({
+
+    // We must fetch the actual active markets to cross-reference End Dates,
+    // because the 'positions' API does NOT return market end dates itself.
+    let positions = rows.map(p => ({
       market: p.title || p.market || p.question || '',
       outcome: p.outcome || p.side || 'Yes',
       size: parseFloat(p.size) || parseFloat(p.currentValue) || 0,
@@ -314,13 +325,32 @@ async function fetchStreakPositions(address) {
       marketUrl: p.eventSlug ? `https://polymarket.com/event/${p.eventSlug}` :
         (p.slug ? `https://polymarket.com/event/${p.slug}` : null),
     }));
+
+    if (timeline !== 'all') {
+      await refreshMarketsCache();
+      const now = Date.now();
+      let maxDeltaMs = Infinity;
+      if (timeline === '1d') maxDeltaMs = 86400000;
+      else if (timeline === '1w') maxDeltaMs = 604800000;
+      else if (timeline === '1m') maxDeltaMs = 2592000000;
+
+      positions = positions.filter(p => {
+        const cached = marketsCache.find(m => m.title === p.market);
+        if (!cached || !cached.endDate) return true; // keep if unknown
+        const ends = new Date(cached.endDate).getTime();
+        return (ends - now) > 0 && (ends - now) <= maxDeltaMs;
+      });
+    }
+
+    return positions;
   } catch { return []; }
 }
 
 app.get('/api/smartpicks', async (req, res) => {
   try {
     const minStreak = parseInt(req.query.minStreak) || 10;
-    const result = await fetchSmartPicks(minStreak);
+    const timeline = req.query.timeline || 'all';
+    const result = await fetchSmartPicks(minStreak, timeline);
     res.json({ success: true, generated: new Date().toISOString(), ...result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

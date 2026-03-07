@@ -431,8 +431,11 @@ async function loadSmartPicks() {
   const streakSlider = document.getElementById('smartMinStreak');
   const topN = streakSlider ? parseInt(streakSlider.value) : 10;
 
+  const timelineSelect = document.getElementById('smartTimeline');
+  const timeline = timelineSelect ? timelineSelect.value : 'all';
+
   try {
-    const res = await fetch(`${API_BASE}/api/smartpicks?minStreak=${topN}`);
+    const res = await fetch(`${API_BASE}/api/smartpicks?minStreak=${topN}&timeline=${timeline}`);
     const data = await res.json();
     smartPicksLoaded = true;
     window.smartPicksData = data;
@@ -842,7 +845,9 @@ async function loadDynamicPortfolioWhales() {
     }
 
     container.innerHTML = top10.map(t => {
-      const name = t.name || t.pseudonym || shortenAddress(t.address);
+      const pseudo = t.pseudonym && t.pseudonym.trim() ? t.pseudonym : null;
+      let name = t.name && t.name.trim() !== t.address ? t.name : null;
+      if (!name) name = pseudo || shortenAddress(t.address);
       const addr = t.address;
       return `<button class="portfolio-quick-btn tooltip" data-tip="Add ${escHtml(name)} ($${formatMoneyNumber(t.pnl)} PNL)" onclick="window.addPortfolioAddress('${addr}', '${escHtml(name)}')">${escHtml(name)}</button>`;
     }).join('');

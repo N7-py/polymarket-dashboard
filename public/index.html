@@ -244,7 +244,22 @@
                   max="50" value="10" step="1"
                   oninput="document.getElementById('smartStreakDisplay').textContent=this.value"
                   onchange="loadSmartPicks()" />
-                <span id="smartStreakDisplay" style="font-weight:800;color:var(--accent);min-width:20px;">10</span>
+                <span id="smartStreakDisplay"
+                  style="font-weight:800;color:var(--accent);min-width:20px;margin-right:16px;">10</span>
+              </div>
+
+              <!-- Timeline Filter -->
+              <div class="smart-filter" onclick="event.stopPropagation()">
+                <label for="smartTimeline"
+                  style="font-size:0.75rem;font-weight:700;color:var(--text-dim);white-space:nowrap;margin-right:8px;">Timeline:</label>
+                <select id="smartTimeline"
+                  style="background:var(--bg-card);color:var(--text-main);border:1px solid rgba(255,255,255,0.1);padding:4px 8px;border-radius:4px;outline:none;font-size:0.85rem;"
+                  onchange="loadSmartPicks()">
+                  <option value="all">Any Time</option>
+                  <option value="1d">1 Day Left</option>
+                  <option value="1w">1 Week Left</option>
+                  <option value="1m">1 Month Left</option>
+                </select>
               </div>
             </div>
           </div>
@@ -508,16 +523,17 @@
           the selected sources.</div>
 
         <!-- Overview Tab -->
-        <div id="portfolioOverview" style="display:none;text-align:center">
+        <div id="portfolioOverview" style="display:none;text-align:center;padding:40px 0;">
           <div
             style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">
             Total Estimated Exposure</div>
           <div id="portfolioTotalValue"
-            style="font-size:3rem;font-weight:900;color:var(--text-main);font-family:monospace">$0.00</div>
+            style="font-size:4.5rem;font-weight:900;color:var(--text-main);font-family:monospace;line-height:1">$0.00
+          </div>
         </div>
 
         <!-- Positions Tab -->
-        <div id="portfolioPositions" style="display:none">
+        <div id="portfolioPositions" style="display:block">
           <table style="width:100%;text-align:left;border-collapse:collapse;" id="portfolioTable">
             <thead>
               <tr style="border-bottom:1px solid rgba(255,255,255,0.1);color:var(--text-muted);font-size:0.85rem">
