@@ -1,1 +1,1 @@
-Fix Oops slug issue, add hide ended toggle
+Fix Oops issue: switch to events API for valid slugs

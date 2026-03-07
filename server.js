@@ -37,67 +37,86 @@ function detectCategory(text) {
   return 'other';
 }
 
-// ─── Fetch & process markets ───────────────────────────────────────────────────
+// ─── Fetch & process events (uses /events endpoint for valid URLs) ─────────────
 async function fetchMarkets() {
   try {
-    const res = await axios.get('https://gamma-api.polymarket.com/markets', {
-      params: { active: true, closed: false, limit: 500, order: 'volume24hr', ascending: false },
-      timeout: 15000, headers: { Accept: 'application/json' }
+    const res = await axios.get('https://gamma-api.polymarket.com/events', {
+      params: { active: true, closed: false, limit: 300, order: 'volume24hr', ascending: false },
+      timeout: 20000, headers: { Accept: 'application/json' }
     });
+
     const raw = res.data;
-    const markets = Array.isArray(raw) ? raw : (raw.markets || raw.data || []);
+    const events = Array.isArray(raw) ? raw : (raw.events || raw.data || []);
     const filtered = [];
-    for (const m of markets) {
-      let prices = [];
-      try { prices = typeof m.outcomePrices === 'string' ? JSON.parse(m.outcomePrices) : (m.outcomePrices || []); } catch { }
-      let outcomes = [];
-      try { outcomes = typeof m.outcomes === 'string' ? JSON.parse(m.outcomes) : (m.outcomes || []); } catch { }
-      const numPrices = prices.map(p => parseFloat(p) || 0);
-      const maxProb = Math.max(...numPrices);
-      const maxIdx = numPrices.indexOf(maxProb);
-      if (maxProb >= 0.50) {
-        const title = m.question || m.title || '';
-        const titleLower = title.toLowerCase();
-        // Skip unforecasted / placeholder titles
-        if (!title ||
-          titleLower.includes('oops') ||
-          titleLower.includes("didn't forecast") ||
-          titleLower.includes('did not forecast') ||
-          titleLower.includes('could not forecast') ||
-          titleLower.includes('no forecast') ||
-          titleLower.includes('unknown market') ||
-          title.length < 10) continue;
 
-        // Skip markets without a real word-based slug — numeric or hex slugs
-        // produce "Oops…we didn't forecast this" on polymarket.com/event/...
-        const slug = m.slug || '';
-        const isValidSlug = slug.length >= 3 &&
-          !/^[0-9]+$/.test(slug) &&          // not a plain numeric ID
-          !/^0x[0-9a-f]+$/i.test(slug) &&    // not a hex conditionId
-          /[a-z]/i.test(slug);               // must contain at least one letter
-        if (!isValidSlug) continue;
+    for (const ev of events) {
+      // Event slug is guaranteed to match polymarket.com/event/{slug}
+      const slug = ev.slug || '';
+      if (!slug || slug.length < 3) continue;
 
-        filtered.push({
-          id: m.id, title, slug,
-          category: detectCategory(title),
-          probability: Math.round(maxProb * 1000) / 10,
-          winningOutcome: outcomes[maxIdx] || 'Yes',
-          volume: parseFloat(m.volume) || 0,
-          volume24h: parseFloat(m.volume24hr) || 0,
-          liquidity: parseFloat(m.liquidity) || 0,
-          endDate: m.endDate || m.endDateIso || null,
-          url: `https://polymarket.com/event/${slug}`,
-          totalBets: parseInt(m.uniqueTraderCount) || 0,
-        });
+      const title = ev.title || ev.question || '';
+      const titleLower = title.toLowerCase();
+
+      // Skip unforecasted / placeholder events
+      if (!title || title.length < 10 ||
+        titleLower.includes('oops') ||
+        titleLower.includes("didn't forecast") ||
+        titleLower.includes('did not forecast') ||
+        titleLower.includes('could not forecast') ||
+        titleLower.includes('no forecast')) continue;
+
+      // Each event has one or more markets (outcomes) — find the highest probability
+      const markets = Array.isArray(ev.markets) ? ev.markets : [];
+      if (markets.length === 0) continue;
+
+      let maxProb = 0;
+      let winningOutcome = 'Yes';
+
+      for (const m of markets) {
+        let prices = [];
+        try { prices = typeof m.outcomePrices === 'string' ? JSON.parse(m.outcomePrices) : (m.outcomePrices || []); } catch { }
+        let outcomes = [];
+        try { outcomes = typeof m.outcomes === 'string' ? JSON.parse(m.outcomes) : (m.outcomes || []); } catch { }
+        const numPrices = prices.map(p => parseFloat(p) || 0);
+        const localMax = Math.max(...numPrices, 0);
+        if (localMax > maxProb) {
+          maxProb = localMax;
+          const idx = numPrices.indexOf(localMax);
+          winningOutcome = outcomes[idx] || m.groupItemTitle || 'Yes';
+        }
       }
+
+      if (maxProb < 0.50) continue;
+
+      // Aggregate stats across all sub-markets of this event
+      const volume = parseFloat(ev.volume) || markets.reduce((s, m) => s + (parseFloat(m.volume) || 0), 0);
+      const volume24h = parseFloat(ev.volume24hr) || markets.reduce((s, m) => s + (parseFloat(m.volume24hr) || 0), 0);
+      const liquidity = parseFloat(ev.liquidity) || markets.reduce((s, m) => s + (parseFloat(m.liquidity) || 0), 0);
+
+      filtered.push({
+        id: ev.id,
+        title,
+        slug,
+        category: detectCategory(title),
+        probability: Math.round(maxProb * 1000) / 10,
+        winningOutcome,
+        volume,
+        volume24h,
+        liquidity,
+        endDate: ev.endDate || ev.endDateIso || null,
+        url: `https://polymarket.com/event/${slug}`,
+        totalBets: parseInt(ev.uniqueTraderCount) || 0,
+      });
     }
+
     filtered.sort((a, b) => b.probability - a.probability);
     return filtered;
   } catch (err) {
-    console.error('Error fetching markets:', err.message);
+    console.error('Error fetching events:', err.message);
     return marketsCache;
   }
 }
+
 
 // ─── Fetch open positions for one trader ──────────────────────────────────────
 async function fetchTraderPositions(address) {
