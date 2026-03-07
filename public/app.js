@@ -10,6 +10,8 @@ let allMarkets = [];
 let currentCategory = 'all';
 let searchQuery = '';
 let currentPage = 'scanner';
+let minProb = 70;   // slider min (default matches old ≥70% filter)
+let maxProb = 100;  // slider max
 
 // Leaderboard state
 let lbTimePeriod = 'ALL';
@@ -81,7 +83,54 @@ document.getElementById('mainNav').addEventListener('click', e => {
   if (btn) navigateTo(btn.dataset.page);
 });
 
-// ─── SCANNER: Market rendering ─────────────────────────────────────────────────
+// ─── Probability Slider ────────────────────────────────────────────────────────
+function updateSlider() {
+  const sliderMin = document.getElementById('probMin');
+  const sliderMax = document.getElementById('probMax');
+  const fill = document.getElementById('rangeFill');
+  const minDisplay = document.getElementById('probMinDisplay');
+  const maxDisplay = document.getElementById('probMaxDisplay');
+  if (!sliderMin || !sliderMax || !fill) return;
+
+  const rangeMin = parseInt(sliderMin.min);
+  const rangeMax = parseInt(sliderMin.max);
+  let valMin = parseInt(sliderMin.value);
+  let valMax = parseInt(sliderMax.value);
+
+  // Prevent thumbs from crossing (min gap = 1)
+  if (valMin > valMax - 1) {
+    if (document.activeElement === sliderMin) valMin = valMax - 1;
+    else valMax = valMin + 1;
+    sliderMin.value = valMin;
+    sliderMax.value = valMax;
+  }
+
+  // Update gradient fill position
+  const pctMin = ((valMin - rangeMin) / (rangeMax - rangeMin)) * 100;
+  const pctMax = ((valMax - rangeMin) / (rangeMax - rangeMin)) * 100;
+  fill.style.left = pctMin + '%';
+  fill.style.right = (100 - pctMax) + '%';
+
+  // Update labels
+  if (minDisplay) minDisplay.textContent = valMin;
+  if (maxDisplay) maxDisplay.textContent = valMax;
+
+  // Update state and re-filter
+  minProb = valMin;
+  maxProb = valMax;
+  applyFilters();
+}
+
+// Init slider on page load after DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+  const sliderMin = document.getElementById('probMin');
+  const sliderMax = document.getElementById('probMax');
+  if (sliderMin) sliderMin.addEventListener('input', updateSlider);
+  if (sliderMax) sliderMax.addEventListener('input', updateSlider);
+  updateSlider(); // set initial fill position
+});
+
+
 function renderMarkets(markets) {
   const grid = document.getElementById('marketsGrid');
   const empty = document.getElementById('emptyState');
@@ -128,7 +177,12 @@ function applyFilters() {
   let result = allMarkets;
   if (currentCategory !== 'all') result = result.filter(m => m.category === currentCategory);
   if (searchQuery) { const q = searchQuery.toLowerCase(); result = result.filter(m => m.title.toLowerCase().includes(q) || m.category.includes(q)); }
+  // Probability range filter
+  result = result.filter(m => m.probability >= minProb && m.probability <= maxProb);
   renderMarkets(result);
+  // Update stats pill with range info
+  const totalPill = document.getElementById('totalCount');
+  if (totalPill) totalPill.textContent = `${result.length} markets ${minProb}–${maxProb}%`;
 }
 
 async function loadMarkets() {
@@ -137,6 +191,7 @@ async function loadMarkets() {
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'API error');
     allMarkets = data.markets || [];
+    updateSlider();   // apply initial prob range + update fill
     document.getElementById('totalCount').textContent = `${data.count} markets ≥70%`;
     const upd = data.lastUpdated ? new Date(data.lastUpdated).toLocaleTimeString() : '—';
     document.getElementById('lastUpdated').textContent = `Last updated: ${upd}`;

@@ -57,6 +57,33 @@
           <input type="text" id="searchInput" class="search-input" placeholder="Search markets…" autocomplete="off" />
           <button class="search-clear" id="searchClear" style="display:none">✕</button>
         </div>
+
+        <!-- Probability Dual Range Slider -->
+        <div class="prob-slider-section">
+          <div class="prob-slider-header">
+            <span class="prob-slider-title">🎯 Probability Filter</span>
+            <span class="prob-range-label">
+              <span id="probMinDisplay">70</span>%
+              <span class="prob-range-dash">—</span>
+              <span id="probMaxDisplay">100</span>%
+            </span>
+          </div>
+          <div class="range-wrap">
+            <div class="range-track">
+              <div class="range-fill" id="rangeFill"></div>
+            </div>
+            <input type="range" id="probMin" class="range-input range-min" min="50" max="100" value="70" step="1" />
+            <input type="range" id="probMax" class="range-input range-max" min="50" max="100" value="100" step="1" />
+          </div>
+          <div class="range-ticks">
+            <span>50%</span>
+            <span>60%</span>
+            <span>70%</span>
+            <span>80%</span>
+            <span>90%</span>
+            <span>100%</span>
+          </div>
+        </div>
       </div>
     </section>
 

@@ -294,6 +294,138 @@ body::before {
   color: var(--text);
 }
 
+/* ─── Probability Range Slider ────────────────────────────────────────────────── */
+.prob-slider-section {
+  max-width: 560px;
+  margin: 20px auto 0;
+  padding: 18px 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.prob-slider-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.prob-slider-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+}
+
+.prob-range-label {
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #6c63ff, #00d4aa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.prob-range-dash {
+  margin: 0 4px;
+  opacity: 0.5;
+}
+
+/* Track + fill */
+.range-wrap {
+  position: relative;
+  height: 36px;
+  display: flex;
+  align-items: center;
+}
+
+.range-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 100px;
+  z-index: 0;
+}
+
+.range-fill {
+  position: absolute;
+  height: 100%;
+  border-radius: 100px;
+  background: linear-gradient(90deg, #6c63ff, #00d4aa);
+  box-shadow: 0 0 8px rgba(108, 99, 255, 0.5);
+  transition: left 0.05s, right 0.05s;
+}
+
+/* Two overlapping range inputs */
+.range-input {
+  position: absolute;
+  width: 100%;
+  height: 5px;
+  background: none;
+  border: none;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Thumb shared */
+.range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid #6c63ff;
+  box-shadow: 0 2px 8px rgba(108, 99, 255, 0.5);
+  cursor: grab;
+  pointer-events: all;
+  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+}
+
+.range-input::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid #6c63ff;
+  box-shadow: 0 2px 8px rgba(108, 99, 255, 0.5);
+  cursor: grab;
+  pointer-events: all;
+}
+
+.range-input::-webkit-slider-thumb:hover,
+.range-input:focus::-webkit-slider-thumb {
+  border-color: #00d4aa;
+  transform: scale(1.2);
+  box-shadow: 0 0 0 6px rgba(108, 99, 255, 0.15), 0 2px 8px rgba(108, 99, 255, 0.5);
+}
+
+.range-input:active::-webkit-slider-thumb {
+  cursor: grabbing;
+}
+
+/* Ticks */
+.range-ticks {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.range-ticks span {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+
 /* ─── Main ───────────────────────────────────────────────────────────────────── */
 .main {
   position: relative;

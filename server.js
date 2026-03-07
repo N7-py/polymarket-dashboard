@@ -55,8 +55,19 @@ async function fetchMarkets() {
       const numPrices = prices.map(p => parseFloat(p) || 0);
       const maxProb = Math.max(...numPrices);
       const maxIdx = numPrices.indexOf(maxProb);
-      if (maxProb >= 0.70) {
-        const title = m.question || m.title || 'Unknown Market';
+      if (maxProb >= 0.50) {
+        const title = m.question || m.title || '';
+        // Skip markets with placeholder or unforecasted content
+        const titleLower = title.toLowerCase();
+        if (!title ||
+          titleLower.includes("oops") ||
+          titleLower.includes("didn't forecast") ||
+          titleLower.includes("did not forecast") ||
+          titleLower.includes("could not forecast") ||
+          titleLower.includes("no forecast") ||
+          titleLower.includes("unknown market") ||
+          title.length < 10) continue;
+
         filtered.push({
           id: m.id, title,
           slug: m.slug || m.conditionId || m.id,
@@ -213,7 +224,7 @@ async function refreshMarketsCache() {
   console.log('🔄 Refreshing markets cache...');
   marketsCache = await fetchMarkets();
   lastFetch = Date.now();
-  console.log(`✅ Cached ${marketsCache.length} markets with ≥70% probability`);
+  console.log(`✅ Cached ${marketsCache.length} markets with ≥50% probability`);
 }
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
