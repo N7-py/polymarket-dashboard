@@ -62,13 +62,18 @@ function escHtml(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+function shortenAddress(addr) {
+  if (!addr || addr.length <= 10) return addr;
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+}
+
 function openMarket(url) {
   if (url) window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 // ─── SPA navigation ────────────────────────────────────────────────────────────
 function navigateTo(page) {
-  ['scanner', 'hotbets', 'mypicks', 'leaderboard'].forEach(p => {
+  ['scanner', 'hotbets', 'mypicks', 'leaderboard', 'portfolio', 'trader-profile'].forEach(p => {
     const el = document.getElementById(`page-${p}`);
     if (el) el.style.display = (p === page ? '' : 'none');
     const btn = document.querySelector(`[data-page="${p}"]`);
@@ -78,7 +83,100 @@ function navigateTo(page) {
   if (page === 'hotbets') loadHotBets();
   if (page === 'mypicks') loadMyPicks();
   if (page === 'leaderboard') loadLeaderboard();
+  if (page === 'portfolio') {
+    const container = document.getElementById('portfolioQuickAdd');
+    if (container && container.innerHTML.includes('Loading leaderboard')) {
+      loadDynamicPortfolioWhales();
+    }
+  }
 }
+
+// ─── TRADER PROFILE NAVIGATION ────────────────────────────────────────────────
+window.viewTraderProfile = async function (address, name = null, pnl = null, volume = null, trades = null, winRate = null) {
+  if (!address) return;
+
+  // Navigate to custom profile page
+  document.querySelectorAll('.page').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+  document.getElementById('page-trader-profile').style.display = 'block';
+  currentPage = 'trader-profile';
+  window.scrollTo(0, 0);
+
+  // Set Profile Hero
+  const displayName = name || shortenAddress(address);
+  document.getElementById('tpName').textContent = displayName;
+  document.getElementById('tpAddress').textContent = address;
+  document.getElementById('tpAvatar').textContent = displayName.slice(0, 2).toUpperCase();
+  document.getElementById('tpProfit').textContent = pnl ? `$${formatMoneyNumber(pnl)}` : 'N/A';
+
+  // Set Advanced Stats
+  document.getElementById('tpVolume').textContent = volume ? formatMoney(volume) : '—';
+  document.getElementById('tpTrades').textContent = trades ? trades.toLocaleString() : '—';
+  document.getElementById('tpWinRate').textContent = (winRate && winRate > 0) ? `${winRate.toFixed(1)}%` : '—';
+
+  // Reset to Overview Tab
+  window.switchTraderTab('overview');
+
+  // Set loading state
+  const tbody = document.getElementById('tpTableBody');
+  tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:60px;color:var(--text-muted)">Loading positions for ${escHtml(displayName)} from Polymarket...</td></tr>`;
+  document.getElementById('tpExposure').textContent = 'Loading...';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/portfolio?addresses=${address}`);
+    const data = await res.json();
+
+    // Update Profit if backend can derive exposure
+    if (!pnl && data.totalValue) {
+      document.getElementById('tpProfit').textContent = formatMoney(data.totalValue) + ' (Exposure)';
+    }
+
+    // Update Overview Tab Exposure
+    document.getElementById('tpExposure').textContent = formatMoney(data.totalValue || 0);
+
+    if (!data.positions || data.positions.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:60px;color:var(--text-dim)">No active positions open right now.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = data.positions.map(p => `
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.05);transition:background 0.2s" class="portfolio-row" onclick="window.open('${escHtml(p.url)}', '_blank')">
+        <td style="padding:16px 8px;font-weight:600;color:#fff;cursor:pointer">
+          ${escHtml(p.title)}
+        </td>
+        <td style="padding:16px 8px;text-align:right">
+          <span style="background:rgba(255,255,255,0.1);padding:4px 8px;border-radius:4px;font-size:0.85rem">${escHtml(p.outcome)}</span>
+          <div style="font-size:0.8rem;color:var(--text-dim);margin-top:6px">${p.totalShares.toFixed(2)} shares @ ~${(p.avgPrice * 100).toFixed(1)}c</div>
+        </td>
+        <td style="padding:16px 8px;text-align:right;font-family:monospace;font-weight:700;color:var(--accent);font-size:1.1rem">
+          ${formatMoney(p.totalValue)}
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) {
+    console.error('Trader Profile error:', err);
+    tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:40px;color:#e74c3c">Failed to load trader data.</td></tr>`;
+    document.getElementById('tpExposure').textContent = 'Error';
+  }
+};
+
+window.switchTraderTab = function (tabName) {
+  // Hide all tab content blocks
+  ['overview', 'positions', 'pnl', 'categories', 'trades', 'funding'].forEach(t => {
+    const el = document.getElementById(`tpTab-${t}`);
+    if (el) el.style.display = 'none';
+  });
+
+  // Remove active styling from tab buttons
+  document.querySelectorAll('#tpTabs .tab').forEach(btn => btn.classList.remove('active'));
+
+  // Show selected tab content and style the active button
+  const activeEl = document.getElementById(`tpTab-${tabName}`);
+  if (activeEl) activeEl.style.display = 'block';
+
+  const activeBtn = document.querySelector(`#tpTabs [data-tptab="${tabName}"]`);
+  if (activeBtn) activeBtn.classList.add('active');
+};
 
 document.getElementById('mainNav').addEventListener('click', e => {
   const btn = e.target.closest('.nav-btn');
@@ -324,10 +422,10 @@ async function loadSmartPicks() {
   document.getElementById('smartPicksGrid').innerHTML = `<div class="skeleton-card" style="height:140px"></div>`.repeat(2);
 
   const streakSlider = document.getElementById('smartMinStreak');
-  const minStreak = streakSlider ? parseInt(streakSlider.value) : 10;
+  const topN = streakSlider ? parseInt(streakSlider.value) : 10;
 
   try {
-    const res = await fetch(`${API_BASE}/api/smartpicks?minStreak=${minStreak}`);
+    const res = await fetch(`${API_BASE}/api/smartpicks?minStreak=${topN}`);
     const data = await res.json();
     smartPicksLoaded = true;
     window.smartPicksData = data;
@@ -344,24 +442,23 @@ function renderSmartPicks(data) {
   const strip = document.getElementById('smartStatStrip');
   const grid = document.getElementById('smartPicksGrid');
   const streakSlider = document.getElementById('smartMinStreak');
-  const minStreak = streakSlider ? parseInt(streakSlider.value) : 10;
+  const topN = streakSlider ? parseInt(streakSlider.value) : 10;
 
-  const traders = data.streakTraders || [];
+  const traders = data.topTraders || [];
   let picks = data.picks || [];
 
   if (traders.length === 0) {
-    strip.innerHTML = `No traders currently on a ${minStreak}+ winning streak meeting criteria.`;
+    strip.innerHTML = `No top traders found right now.`;
     grid.innerHTML = '';
     return;
   }
 
-  strip.innerHTML = `Analyzing <b>${traders.length}</b> top leaderboard traders currently on a winning streak (≥60% win rate, ${minStreak}+ bets). Found <b>${picks.length}</b> shared convictions with 2+ backers.`;
+  strip.innerHTML = `Analyzing the top <b>${traders.length}</b> most profitable traders globally this week. Found <b>${picks.length}</b> shared convictions with 2+ backers.`;
 
   if (picks.length === 0) {
-    grid.innerHTML = `<div style="text-align:center;color:var(--text-dim);grid-column:1/-1;padding:20px">No shared markets found. Try lowering the streak slider.</div>`;
+    grid.innerHTML = `<div style="text-align:center;color:var(--text-dim);grid-column:1/-1;padding:20px">No shared markets found. Try expanding the slider to analyze more top traders.</div>`;
     return;
   }
-
 
   grid.innerHTML = picks.map(p => {
     return `
@@ -378,7 +475,7 @@ function renderSmartPicks(data) {
         <div class="smart-endorsers">
           <span class="smart-endorser-count">👥 ${p.endorserCount} top traders</span>
           <div class="smart-avatars">
-            ${p.endorsers.map(e => `<span class="smart-ava tooltip" data-tip="${escHtml(e.name)}: ${e.winRate.toFixed(0)}% WR">${(e.name || 'U').slice(0, 2).toUpperCase()}</span>`).join('')}
+            ${p.endorsers.map(e => `<span class="smart-ava tooltip" data-tip="${escHtml(e.name)}: $${formatMoneyNumber(e.pnl)} PNL">${(e.name || 'U').slice(0, 2).toUpperCase()}</span>`).join('')}
           </div>
         </div>
       </div>
@@ -512,15 +609,15 @@ function renderLeaderboard(users) {
     const panelId = `pred-panel-${u.rank}`;
 
     html += `
-    <tr class="trader-main-row ${hasProfile ? 'clickable-row' : ''}"
-        onclick="traderRowClick(event,'${escHtml(u.profileUrl || '')}','${panelId}')"
-        title="${hasProfile ? 'Click to open Polymarket profile' : ''}">
+    <tr class="trader-main-row ${u.address ? 'clickable-row' : ''}"
+        onclick="traderRowClick(event, '${escHtml(u.address || '')}', '${escHtml(u.name || '')}', ${u.profit || 0}, ${u.volume || 0}, ${u.tradesCount || 0}, ${pct || 0})"
+        title="${u.address ? 'Click to view Trader Profile' : ''}">
       <td class="rank-cell ${rankClass}">${rankDisplay}</td>
       <td>
         <div class="trader-cell">
           <div class="trader-avatar">${initials}</div>
           <div>
-            <div class="trader-name ${hasProfile ? 'trader-link' : ''}">${escHtml(u.name)}</div>
+            <div class="trader-name ${u.address ? 'trader-link' : ''}">${escHtml(u.name)}</div>
             ${u.address ? `<div class="trader-addr">${u.address.slice(0, 8)}…${u.address.slice(-4)}</div>` : ''}
           </div>
         </div>
@@ -570,9 +667,11 @@ function renderLeaderboard(users) {
   tbody.innerHTML = html;
 }
 
-function traderRowClick(event, profileUrl, panelId) {
+function traderRowClick(event, address, name, profit, volume, trades, winRate) {
   if (event.target.closest('.expand-btn')) return;
-  if (profileUrl) window.open(profileUrl, '_blank', 'noopener,noreferrer');
+  if (address) {
+    window.viewTraderProfile(address, name, profit, volume, trades, winRate);
+  }
 }
 
 function togglePredictions(event, panelId) {
@@ -604,6 +703,158 @@ document.getElementById('lbCatPills').addEventListener('click', e => {
   loadLeaderboard();
 });
 
+// ─── PORTFOLIO TRACKER ────────────────────────────────────────────────────────
+window.portfolioAddresses = [];
+let portfolioLoading = false;
+
+window.addPortfolioAddress = function (address, defaultName = null) {
+  if (!address || address.trim() === '') return;
+  const addrStr = address.trim();
+
+  if (window.portfolioAddresses.some(a => a.address.toLowerCase() === addrStr.toLowerCase())) {
+    document.getElementById('portfolioInput').value = '';
+    return; // Already added
+  }
+
+  window.portfolioAddresses.push({
+    address: addrStr,
+    name: defaultName || shortenAddress(addrStr)
+  });
+
+  document.getElementById('portfolioInput').value = '';
+  renderPortfolioTags();
+  loadPortfolioData();
+};
+
+window.removePortfolioAddress = function (address) {
+  window.portfolioAddresses = window.portfolioAddresses.filter(a => a.address.toLowerCase() !== address.toLowerCase());
+  renderPortfolioTags();
+  loadPortfolioData();
+};
+
+function renderPortfolioTags() {
+  const container = document.getElementById('portfolioTags');
+  if (!container) return;
+
+  if (window.portfolioAddresses.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = window.portfolioAddresses.map(a => `
+    <div style="display:inline-flex;align-items:center;background:rgba(0,82,255,0.15);border:1px solid rgba(0,82,255,0.3);color:#fff;padding:6px 12px;border-radius:20px;font-size:0.85rem;font-weight:600">
+      <span style="margin-right:8px;color:#0052FF">●</span>
+      ${escHtml(a.name)}
+      <button onclick="window.removePortfolioAddress('${a.address}')" style="background:none;border:none;color:var(--text-muted);margin-left:8px;cursor:pointer;padding:0;font-size:1rem;line-height:1">&times;</button>
+    </div>
+  `).join('');
+}
+
+window.switchPortfolioTab = function (tabName) {
+  document.querySelectorAll('#portfolioTabs .tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`#portfolioTabs .tab[data-tab="${tabName}"]`).classList.add('active');
+
+  document.getElementById('portfolioOverview').style.display = tabName === 'overview' ? 'block' : 'none';
+  document.getElementById('portfolioPositions').style.display = tabName === 'positions' ? 'block' : 'none';
+};
+
+async function loadPortfolioData() {
+  const content = document.getElementById('portfolioContent');
+  const empty = document.getElementById('portfolioEmptyState');
+  const overview = document.getElementById('portfolioOverview');
+  const posTab = document.getElementById('portfolioPositions');
+
+  if (window.portfolioAddresses.length === 0) {
+    empty.style.display = 'block';
+    overview.style.display = 'none';
+    posTab.style.display = 'none';
+    document.getElementById('portfolioTotalValue').textContent = '$0.00';
+    document.getElementById('portfolioTableBody').innerHTML = '';
+    return;
+  }
+
+  empty.style.display = 'none';
+  const activeTab = document.querySelector('#portfolioTabs .tab.active').dataset.tab;
+  window.switchPortfolioTab(activeTab); // Ensure correct display state
+
+  document.getElementById('portfolioTableBody').innerHTML = `<tr><td colspan="3" style="text-align:center;padding:40px;color:var(--text-muted)">Loading positions from ${window.portfolioAddresses.length} wallet(s)...</td></tr>`;
+
+  try {
+    const addrString = window.portfolioAddresses.map(a => a.address).join(',');
+    const res = await fetch(`${API_BASE}/api/portfolio?addresses=${addrString}`);
+    const data = await res.json();
+
+    // Update Overview
+    document.getElementById('portfolioTotalValue').textContent = formatMoney(data.totalValue || 0);
+
+    // Update Table
+    const tbody = document.getElementById('portfolioTableBody');
+    if (!data.positions || data.positions.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:40px;color:var(--text-muted)">No active positions found across these wallets.</td></tr>`;
+    } else {
+      tbody.innerHTML = data.positions.map(p => `
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);transition:background 0.2s" class="portfolio-row" onclick="window.open('${escHtml(p.url)}', '_blank')">
+          <td style="padding:16px 8px;font-weight:600;color:#fff;cursor:pointer">
+            ${escHtml(p.title)}
+            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;font-weight:400">
+              Held by: ${p.wallets.map(w => {
+        const found = window.portfolioAddresses.find(pa => pa.address.toLowerCase() === w.toLowerCase());
+        return found ? found.name : shortenAddress(w);
+      }).join(', ')}
+            </div>
+          </td>
+          <td style="padding:16px 8px;text-align:right">
+            <span style="background:rgba(255,255,255,0.1);padding:4px 8px;border-radius:4px;font-size:0.85rem">${escHtml(p.outcome)}</span>
+            <div style="font-size:0.8rem;color:var(--text-dim);margin-top:6px">${p.totalShares.toFixed(2)} shares @ ~${(p.avgPrice * 100).toFixed(1)}c</div>
+          </td>
+          <td style="padding:16px 8px;text-align:right;font-family:monospace;font-weight:700;color:var(--accent);font-size:1.1rem">
+            ${formatMoney(p.totalValue)}
+          </td>
+        </tr>
+      `).join('');
+    }
+  } catch (err) {
+    console.error('Portfolio error:', err);
+    document.getElementById('portfolioTableBody').innerHTML = `<tr><td colspan="3" style="text-align:center;padding:40px;color:#e74c3c">Error loading portfolio data.</td></tr>`;
+  }
+}
+
+// Dynamically load top 10 traders for Quick Add
+async function loadDynamicPortfolioWhales() {
+  const container = document.getElementById('portfolioQuickAdd');
+  if (!container) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/leaderboard?period=WEEK&category=OVERALL`);
+    const data = await res.json();
+    const traders = data.leaderboard || [];
+    const top10 = traders.filter(t => t.address).slice(0, 10);
+
+    if (top10.length === 0) {
+      container.innerHTML = `<span style="color:var(--text-muted)">No recent traders found</span>`;
+      return;
+    }
+
+    container.innerHTML = top10.map(t => {
+      const name = t.name || t.pseudonym || shortenAddress(t.address);
+      const addr = t.address;
+      return `<button class="portfolio-quick-btn tooltip" data-tip="Add ${escHtml(name)} ($${formatMoneyNumber(t.pnl)} PNL)" onclick="window.addPortfolioAddress('${addr}', '${escHtml(name)}')">${escHtml(name)}</button>`;
+    }).join('');
+  } catch (err) {
+    console.error('Whales error:', err);
+    container.innerHTML = `<span style="color:var(--text-muted)">Leaderboard unavailable</span>`;
+  }
+}
+
+// Make sure quick buttons are styled correctly
+const styleEl = document.createElement('style');
+styleEl.textContent = `
+  .portfolio-quick-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-main); padding: 4px 12px; border-radius: 12px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s; white-space: nowrap; }
+  .portfolio-quick-btn:hover { background: rgba(0,82,255,0.2); border-color: #0052FF; }
+  .portfolio-row:hover { background: rgba(255,255,255,0.02); }
+`;
+document.head.appendChild(styleEl);
+
+
 // ─── Countdown & auto-refresh ──────────────────────────────────────────────────
 function startRefreshCycle() {
   secondsLeft = REFRESH_INTERVAL;
@@ -614,6 +865,7 @@ function startRefreshCycle() {
       secondsLeft = REFRESH_INTERVAL;
       loadMarkets();
       if (currentPage === 'hotbets') loadHotBets();
+      if (currentPage === 'portfolio') loadPortfolioData();
     }
     const el = document.getElementById('refreshCountdown');
     if (el) el.textContent = `${secondsLeft}s`;

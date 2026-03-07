@@ -328,76 +328,6 @@ app.get('/api/smartpicks', async (req, res) => {
 });
 
 
-// ─── PORTFOLIO TRACKER ────────────────────────────────────────────────────────
-
-app.get('/api/portfolio', async (req, res) => {
-  try {
-    const addressesParam = req.query.addresses || '';
-    const addresses = addressesParam.split(',').map(a => a.trim()).filter(Boolean);
-
-    if (addresses.length === 0) {
-      return res.json({ success: true, positions: [], totalValue: 0 });
-    }
-
-    // Fetch positions for all requested wallets in parallel
-    const positionResults = await Promise.allSettled(
-      addresses.map(addr => fetchStreakPositions(addr))
-    );
-
-    let totalValue = 0;
-    const marketMap = new Map(); // Group identical positions
-
-    positionResults.forEach((result, idx) => {
-      if (result.status !== 'fulfilled') return;
-      const wallet = addresses[idx];
-      const positions = result.value || [];
-
-      positions.forEach(pos => {
-        if (!pos.market || pos.market === 'Unknown Market') return;
-
-        // Calculate the USD value of this position (simplified estimate)
-        // If they hold 100 shares of Yes at 50c, value = $50
-        const positionValue = pos.size * pos.curPrice;
-        totalValue += positionValue;
-
-        const key = `${pos.market.toLowerCase().trim()}_${pos.outcome}`;
-        if (!marketMap.has(key)) {
-          marketMap.set(key, {
-            title: pos.market,
-            url: pos.marketUrl || `https://polymarket.com/event/${pos.market.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60)}`,
-            outcome: pos.outcome,
-            totalShares: 0,
-            totalValue: 0,
-            avgPrice: 0,
-            wallets: new Set()
-          });
-        }
-
-        const entry = marketMap.get(key);
-        entry.totalShares += pos.size;
-        entry.totalValue += positionValue;
-        entry.wallets.add(wallet);
-        entry.avgPrice = pos.curPrice; // Simplification: just using the latest price
-      });
-    });
-
-    // Convert map to array and sort by total USD value
-    const positions = Array.from(marketMap.values())
-      .map(p => ({ ...p, wallets: Array.from(p.wallets) }))
-      .sort((a, b) => b.totalValue - a.totalValue);
-
-    res.json({
-      success: true,
-      generated: new Date().toISOString(),
-      totalValue,
-      positions
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-
 // ─── Hot Bets: background trade poller ────────────────────────────────────────
 
 const HOT_WINDOW_MS = 5 * 60 * 1000; // 5-minute rolling window
@@ -647,8 +577,10 @@ app.get('/api/favoritebets', async (req, res) => {
 
 
 // ─── Start ────────────────────────────────────────────────────────────────────
-app.listen(PORT, async () => {
+/* no listen */ => {
   console.log(`🚀 Polymarket Dashboard running on http://localhost:${PORT}`);
   await refreshMarketsCache();
   await pollHotBets(); // first poll immediately
 });
+
+fetchSmartPicks(3).then(res => console.log(JSON.stringify(res, null, 2))).catch(console.error);
