@@ -1,19 +1,26 @@
 /* ─────────────────────────────────────────────────────────────────────────────
-   PolyRadar — app.js
-   Handles: API fetching, category filtering, search, auto-refresh, leaderboard
+   PolyRadar — app.js  (SPA: Scanner | Hot Bets | Leaderboard)
 ───────────────────────────────────────────────────────────────────────────── */
 
 const API_BASE = '';
-const REFRESH_INTERVAL = 60; // seconds
+const REFRESH_INTERVAL = 60;
 
+// ─── State ─────────────────────────────────────────────────────────────────────
 let allMarkets = [];
 let currentCategory = 'all';
 let searchQuery = '';
+let currentPage = 'scanner';
+
+// Leaderboard state
+let lbTimePeriod = 'ALL';
+let lbCategory = 'OVERALL';
+let lbLoading = false;
+
+// Countdown
 let secondsLeft = REFRESH_INTERVAL;
 let countdownTimer = null;
-let refreshTimer = null;
 
-// ─── Format helpers ─────────────────────────────────────────────────────────────
+// ─── Format helpers ────────────────────────────────────────────────────────────
 function formatMoney(val) {
   if (!val || isNaN(val)) return '—';
   if (val >= 1_000_000) return '$' + (val / 1_000_000).toFixed(1) + 'M';
@@ -26,8 +33,7 @@ function formatDate(dateStr) {
   try {
     const d = new Date(dateStr);
     if (isNaN(d)) return '—';
-    const now = new Date();
-    const diff = d - now;
+    const diff = d - Date.now();
     if (diff < 0) return 'Ended';
     const days = Math.floor(diff / 86400000);
     if (days === 0) return 'Today';
@@ -41,38 +47,56 @@ function formatDate(dateStr) {
 function probColor(pct) {
   if (pct >= 90) return '#00d4aa';
   if (pct >= 80) return '#6c63ff';
-  if (pct >= 70) return '#f7931a';
-  return '#aaa';
+  return '#f7931a';
 }
 
 function catLabel(cat) {
-  const labels = { crypto: '₿ Crypto', sports: '⚽ Sports', politics: '🏛️ Politics', finance: '📈 Finance', technology: '💻 Technology', other: '🔮 Other' };
-  return labels[cat] || cat;
+  const map = { crypto: '₿ Crypto', sports: '⚽ Sports', politics: '🏛️ Politics', finance: '📈 Finance', technology: '💻 Technology', other: '🔮 Other' };
+  return map[cat] || cat;
 }
 
-// ─── Render markets ─────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function openMarket(url) {
+  if (url) window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+// ─── SPA navigation ────────────────────────────────────────────────────────────
+function navigateTo(page) {
+  ['scanner', 'hotbets', 'leaderboard'].forEach(p => {
+    const el = document.getElementById(`page-${p}`);
+    if (el) el.style.display = (p === page ? '' : 'none');
+    const btn = document.querySelector(`[data-page="${p}"]`);
+    if (btn) btn.classList.toggle('active', p === page);
+  });
+  currentPage = page;
+  if (page === 'hotbets') loadHotBets();
+  if (page === 'leaderboard') loadLeaderboard();
+}
+
+document.getElementById('mainNav').addEventListener('click', e => {
+  const btn = e.target.closest('.nav-btn');
+  if (btn) navigateTo(btn.dataset.page);
+});
+
+// ─── SCANNER: Market rendering ─────────────────────────────────────────────────
 function renderMarkets(markets) {
   const grid = document.getElementById('marketsGrid');
   const empty = document.getElementById('emptyState');
-
   if (!markets || markets.length === 0) {
-    grid.style.display = 'none';
-    empty.style.display = 'block';
-    return;
+    grid.style.display = 'none'; empty.style.display = 'block'; return;
   }
-
-  grid.style.display = 'grid';
-  empty.style.display = 'none';
-
+  grid.style.display = 'grid'; empty.style.display = 'none';
   grid.innerHTML = markets.map(m => {
     const color = probColor(m.probability);
     return `
-    <div class="market-card cat-${m.category}" onclick="openMarket('${escHtml(m.url)}')" role="button" tabindex="0" aria-label="Open ${escHtml(m.title)} on Polymarket">
+    <div class="market-card cat-${m.category}" onclick="openMarket('${escHtml(m.url)}')" role="button" tabindex="0">
       <div class="card-top">
         <div class="card-title">${escHtml(m.title)}</div>
         <span class="category-badge cat-${m.category}">${catLabel(m.category)}</span>
       </div>
-
       <div class="prob-row">
         <div>
           <div class="prob-label">Probability</div>
@@ -83,27 +107,15 @@ function renderMarkets(markets) {
           ${escHtml(m.winningOutcome)}
         </div>
       </div>
-
       <div class="progress-wrap">
         <div class="progress-bar" style="width:${m.probability}%;background:${color}"></div>
       </div>
-
       <div class="card-stats">
-        <div class="stat">
-          <span class="stat-label">Volume</span>
-          <span class="stat-value">${formatMoney(m.volume)}</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">24h Volume</span>
-          <span class="stat-value">${formatMoney(m.volume24h)}</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Liquidity</span>
-          <span class="stat-value">${formatMoney(m.liquidity)}</span>
-        </div>
+        <div class="stat"><span class="stat-label">Volume</span><span class="stat-value">${formatMoney(m.volume)}</span></div>
+        <div class="stat"><span class="stat-label">24h Vol</span><span class="stat-value">${formatMoney(m.volume24h)}</span></div>
+        <div class="stat"><span class="stat-label">Liquidity</span><span class="stat-value">${formatMoney(m.liquidity)}</span></div>
         ${m.totalBets ? `<div class="stat"><span class="stat-label">Traders</span><span class="stat-value">${m.totalBets.toLocaleString()}</span></div>` : ''}
       </div>
-
       <div class="card-footer">
         <span class="end-date">⏱ ${formatDate(m.endDate)}</span>
         <span class="open-link">Open on Polymarket ↗</span>
@@ -112,98 +124,150 @@ function renderMarkets(markets) {
   }).join('');
 }
 
-function openMarket(url) {
-  if (url) window.open(url, '_blank', 'noopener,noreferrer');
-}
-
-function escHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-// ─── Filter & search ─────────────────────────────────────────────────────────────
 function applyFilters() {
   let result = allMarkets;
-  if (currentCategory !== 'all') {
-    result = result.filter(m => m.category === currentCategory);
-  }
-  if (searchQuery) {
-    const q = searchQuery.toLowerCase();
-    result = result.filter(m => m.title.toLowerCase().includes(q) || m.category.toLowerCase().includes(q));
-  }
+  if (currentCategory !== 'all') result = result.filter(m => m.category === currentCategory);
+  if (searchQuery) { const q = searchQuery.toLowerCase(); result = result.filter(m => m.title.toLowerCase().includes(q) || m.category.includes(q)); }
   renderMarkets(result);
 }
 
-// ─── Fetch markets from backend ─────────────────────────────────────────────────
 async function loadMarkets() {
   try {
     const res = await fetch(`${API_BASE}/api/markets`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (!data.success) throw new Error(data.error || 'API error');
-
     allMarkets = data.markets || [];
-
-    // Update UI counters
     document.getElementById('totalCount').textContent = `${data.count} markets ≥70%`;
     const upd = data.lastUpdated ? new Date(data.lastUpdated).toLocaleTimeString() : '—';
     document.getElementById('lastUpdated').textContent = `Last updated: ${upd}`;
-
     applyFilters();
   } catch (err) {
-    console.error('Failed to load markets:', err);
+    console.error('Markets error:', err);
     document.getElementById('marketsGrid').innerHTML = `
       <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)">
-        <p style="font-size:2rem;margin-bottom:12px">⚠️</p>
-        <p>Could not fetch markets. Retrying…</p>
-        <p style="font-size:0.78rem;margin-top:8px;color:var(--text-dim)">${err.message}</p>
+        <p style="font-size:2rem;margin-bottom:12px">⚠️</p><p>Could not fetch markets. Retrying…</p>
       </div>`;
   }
 }
 
-// ─── Fetch leaderboard ─────────────────────────────────────────────────────────
-async function loadLeaderboard() {
+// Category tabs
+document.getElementById('categoryTabs').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  currentCategory = tab.dataset.cat;
+  applyFilters();
+});
+
+// Search
+const searchInput = document.getElementById('searchInput');
+const searchClear = document.getElementById('searchClear');
+let searchDebounce = null;
+searchInput.addEventListener('input', () => {
+  searchQuery = searchInput.value.trim();
+  searchClear.style.display = searchQuery ? 'block' : 'none';
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(applyFilters, 200);
+});
+searchClear.addEventListener('click', () => {
+  searchInput.value = ''; searchQuery = '';
+  searchClear.style.display = 'none';
+  applyFilters(); searchInput.focus();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.activeElement === searchInput) {
+    searchInput.value = ''; searchQuery = '';
+    searchClear.style.display = 'none'; applyFilters();
+  }
+});
+
+// ─── HOT BETS ─────────────────────────────────────────────────────────────────
+async function loadHotBets() {
   try {
-    const res = await fetch(`${API_BASE}/api/leaderboard`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetch(`${API_BASE}/api/hotbets?limit=20`);
     const data = await res.json();
-    const users = data.leaderboard || [];
-    renderLeaderboard(users);
+    const upd = data.lastPoll ? new Date(data.lastPoll).toLocaleTimeString() : '—';
+    document.getElementById('hotLastUpdated').textContent = `Last poll: ${upd}`;
+    renderHotBets(data.hotBets || []);
+  } catch (err) {
+    console.error('Hot bets error:', err);
+    document.getElementById('hotBetsGrid').innerHTML = `
+      <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)"><p>⚠️ Could not load hot bets.</p></div>`;
+  }
+}
+
+function renderHotBets(bets) {
+  const grid = document.getElementById('hotBetsGrid');
+  const empty = document.getElementById('hotEmptyState');
+  if (!bets || bets.length === 0) {
+    grid.style.display = 'none'; empty.style.display = 'block'; return;
+  }
+  grid.style.display = 'grid'; empty.style.display = 'none';
+  const maxCount = bets[0]?.count || 1;
+  grid.innerHTML = bets.map(b => {
+    const pct = Math.round((b.count / maxCount) * 100);
+    return `
+    <div class="hot-card cat-${b.category}" onclick="openMarket('${escHtml(b.url)}')" role="button" tabindex="0">
+      <div class="hot-rank">#${b.rank}</div>
+      <div class="card-top">
+        <div class="card-title">${escHtml(b.title)}</div>
+        <span class="category-badge cat-${b.category}">${catLabel(b.category)}</span>
+      </div>
+      <div class="hot-stats-row">
+        <div class="hot-bet-count">
+          <span class="fire-icon">🔥</span>
+          <span class="hot-count-num">${b.count}</span>
+          <span class="hot-count-label">bets (5 min)</span>
+        </div>
+        ${b.volume > 0 ? `<div class="hot-volume">${formatMoney(b.volume)} wagered</div>` : ''}
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bar" style="width:${pct}%;background:linear-gradient(90deg,#ff6b6b,#f7931a)"></div>
+      </div>
+      <div class="card-footer">
+        <span class="end-date">📅 Activity tracked live</span>
+        <span class="open-link">View on Polymarket ↗</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── LEADERBOARD ──────────────────────────────────────────────────────────────
+async function loadLeaderboard() {
+  if (lbLoading) return;
+  lbLoading = true;
+  document.getElementById('leaderboardBody').innerHTML = `<tr><td colspan="6" class="loading-row"><span class="lb-loading-text">Loading…</span></td></tr>`;
+  try {
+    const res = await fetch(`${API_BASE}/api/leaderboard?timePeriod=${lbTimePeriod}&category=${lbCategory}`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    renderLeaderboard(data.leaderboard || []);
   } catch (err) {
     console.error('Leaderboard error:', err);
-    document.getElementById('leaderboardBody').innerHTML = `<tr><td colspan="5" class="loading-row">Could not load leaderboard</td></tr>`;
-  }
+    document.getElementById('leaderboardBody').innerHTML = `<tr><td colspan="6" class="loading-row">Could not load leaderboard</td></tr>`;
+  } finally { lbLoading = false; }
 }
 
 function renderLeaderboard(users) {
   const tbody = document.getElementById('leaderboardBody');
   if (!users || users.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="loading-row">No leaderboard data available</td></tr>`;
-    return;
+    tbody.innerHTML = `<tr><td colspan="6" class="loading-row">No data for this filter.</td></tr>`; return;
   }
-
   const rankMedals = ['🥇', '🥈', '🥉'];
   let html = '';
-
   users.forEach(u => {
     const rankClass = u.rank <= 3 ? `rank-${u.rank}` : 'rank-other';
     const rankDisplay = u.rank <= 3 ? rankMedals[u.rank - 1] : `#${u.rank}`;
     const initials = (u.name || 'U').slice(0, 2).toUpperCase();
-    const pct = Math.min(100, Math.max(0, u.percentPositive));
+    const pct = Math.min(100, Math.max(0, u.percentPositive || 0));
     const hasProfile = !!u.profileUrl;
     const hasPositions = u.positions && u.positions.length > 0;
-    const rowId = `trader-row-${u.rank}`;
     const panelId = `pred-panel-${u.rank}`;
 
     html += `
     <tr class="trader-main-row ${hasProfile ? 'clickable-row' : ''}"
-        id="${rowId}"
-        onclick="traderRowClick(event, '${escHtml(u.profileUrl || '')}', '${panelId}')"
+        onclick="traderRowClick(event,'${escHtml(u.profileUrl || '')}','${panelId}')"
         title="${hasProfile ? 'Click to open Polymarket profile' : ''}">
       <td class="rank-cell ${rankClass}">${rankDisplay}</td>
       <td>
@@ -226,20 +290,18 @@ function renderLeaderboard(users) {
       <td class="expand-cell">
         ${hasPositions
         ? `<button class="expand-btn" onclick="togglePredictions(event,'${panelId}')" title="View upcoming predictions">
-               <span class="expand-icon" id="icon-${panelId}">▶</span>
+               <span class="expand-icon" id="icon-${panelId}">▶</span> View
              </button>`
-        : '<span class="no-pos-badge">No open positions</span>'
-      }
+        : `<span class="no-pos-badge">No open</span>`}
       </td>
     </tr>`;
 
-    // Upcoming predictions expandable panel row
     if (hasPositions) {
       html += `
       <tr class="pred-panel-row" id="${panelId}" style="display:none">
         <td colspan="6" class="pred-panel-cell">
           <div class="pred-panel">
-            <div class="pred-panel-title">📌 Upcoming Predictions by ${escHtml(u.name)}</div>
+            <div class="pred-panel-title">📌 Upcoming Predictions — ${escHtml(u.name)}</div>
             <div class="pred-list">
               ${u.positions.map(p => `
               <div class="pred-item ${p.pnl >= 0 ? 'pred-pos' : 'pred-neg'}"
@@ -250,9 +312,7 @@ function renderLeaderboard(users) {
                   <span class="pred-outcome-badge">${escHtml(p.outcome)}</span>
                   ${p.size ? `<span class="pred-size">$${p.size.toFixed(2)} position</span>` : ''}
                   ${p.curPrice ? `<span class="pred-price">@ ${(p.curPrice * 100).toFixed(1)}%</span>` : ''}
-                  ${p.pnl !== 0 ? `<span class="pred-pnl ${p.pnl >= 0 ? 'pnl-pos' : 'pnl-neg'}">
-                    ${p.pnl >= 0 ? '+' : ''}$${Math.abs(p.pnl).toFixed(2)} P&amp;L
-                  </span>` : ''}
+                  ${p.pnl !== 0 ? `<span class="pred-pnl ${p.pnl >= 0 ? 'pnl-pos' : 'pnl-neg'}">${p.pnl >= 0 ? '+' : ''}$${Math.abs(p.pnl).toFixed(2)} P&amp;L</span>` : ''}
                 </div>
               </div>`).join('')}
             </div>
@@ -261,12 +321,10 @@ function renderLeaderboard(users) {
       </tr>`;
     }
   });
-
   tbody.innerHTML = html;
 }
 
 function traderRowClick(event, profileUrl, panelId) {
-  // If clicking the expand button, don't navigate to profile
   if (event.target.closest('.expand-btn')) return;
   if (profileUrl) window.open(profileUrl, '_blank', 'noopener,noreferrer');
 }
@@ -281,70 +339,43 @@ function togglePredictions(event, panelId) {
   if (icon) icon.textContent = isOpen ? '▶' : '▼';
 }
 
+// Leaderboard filter pills
+document.getElementById('lbTimePills').addEventListener('click', e => {
+  const pill = e.target.closest('.lb-pill');
+  if (!pill) return;
+  document.querySelectorAll('#lbTimePills .lb-pill').forEach(p => p.classList.remove('active'));
+  pill.classList.add('active');
+  lbTimePeriod = pill.dataset.tp;
+  loadLeaderboard();
+});
 
-// ─── Countdown & auto-refresh ───────────────────────────────────────────────────
+document.getElementById('lbCatPills').addEventListener('click', e => {
+  const pill = e.target.closest('.lb-pill');
+  if (!pill) return;
+  document.querySelectorAll('#lbCatPills .lb-pill').forEach(p => p.classList.remove('active'));
+  pill.classList.add('active');
+  lbCategory = pill.dataset.cat;
+  loadLeaderboard();
+});
+
+// ─── Countdown & auto-refresh ──────────────────────────────────────────────────
 function startRefreshCycle() {
   secondsLeft = REFRESH_INTERVAL;
-  updateCountdown();
-
   if (countdownTimer) clearInterval(countdownTimer);
   countdownTimer = setInterval(() => {
     secondsLeft--;
     if (secondsLeft <= 0) {
       secondsLeft = REFRESH_INTERVAL;
       loadMarkets();
+      if (currentPage === 'hotbets') loadHotBets();
     }
-    updateCountdown();
+    const el = document.getElementById('refreshCountdown');
+    if (el) el.textContent = `${secondsLeft}s`;
   }, 1000);
 }
 
-function updateCountdown() {
-  const el = document.getElementById('refreshCountdown');
-  if (el) el.textContent = `${secondsLeft}s`;
-}
-
-// ─── Category tabs ──────────────────────────────────────────────────────────────
-document.getElementById('categoryTabs').addEventListener('click', e => {
-  const tab = e.target.closest('.tab');
-  if (!tab) return;
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  tab.classList.add('active');
-  currentCategory = tab.dataset.cat;
-  applyFilters();
-});
-
-// ─── Search ─────────────────────────────────────────────────────────────────────
-const searchInput = document.getElementById('searchInput');
-const searchClear = document.getElementById('searchClear');
-let searchDebounce = null;
-
-searchInput.addEventListener('input', () => {
-  searchQuery = searchInput.value.trim();
-  searchClear.style.display = searchQuery ? 'block' : 'none';
-  clearTimeout(searchDebounce);
-  searchDebounce = setTimeout(applyFilters, 200);
-});
-
-searchClear.addEventListener('click', () => {
-  searchInput.value = '';
-  searchQuery = '';
-  searchClear.style.display = 'none';
-  applyFilters();
-  searchInput.focus();
-});
-
-// Keyboard: press Escape to clear search
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && document.activeElement === searchInput) {
-    searchInput.value = '';
-    searchQuery = '';
-    searchClear.style.display = 'none';
-    applyFilters();
-  }
-});
-
-// ─── Init ───────────────────────────────────────────────────────────────────────
+// ─── Init ──────────────────────────────────────────────────────────────────────
 (async function init() {
-  await Promise.all([loadMarkets(), loadLeaderboard()]);
+  await loadMarkets();
   startRefreshCycle();
 })();

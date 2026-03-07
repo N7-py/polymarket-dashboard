@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PolyRadar — Prediction Markets Scanner</title>
   <meta name="description"
-    content="Real-time scanner for Polymarket prediction markets with ≥70% probability. Filter by category, search, and track top predictors." />
+    content="Real-time scanner for Polymarket prediction markets. High probability markets, hot bets, and top predictor leaderboard." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
@@ -16,7 +16,7 @@
 
 <body>
 
-  <!-- ── HEADER ─────────────────────────────────────────────────────── -->
+  <!-- ── HEADER ──────────────────────────────────────────────────────────────── -->
   <header class="header">
     <div class="header-inner">
       <div class="logo">
@@ -24,6 +24,14 @@
         <span class="logo-text">PolyRadar</span>
         <span class="logo-sub">Prediction Scanner</span>
       </div>
+
+      <!-- Main Navigation -->
+      <nav class="main-nav" id="mainNav">
+        <button class="nav-btn active" data-page="scanner" id="navScanner">📊 Scanner</button>
+        <button class="nav-btn" data-page="hotbets" id="navHotbets">🔥 Hot Bets</button>
+        <button class="nav-btn" data-page="leaderboard" id="navLeaderboard">🏆 Leaderboard</button>
+      </nav>
+
       <div class="header-right">
         <div class="refresh-badge" id="refreshBadge">
           <span class="pulse-dot"></span>
@@ -34,91 +42,148 @@
     </div>
   </header>
 
-  <!-- ── HERO ──────────────────────────────────────────────────────── -->
-  <section class="hero">
-    <div class="hero-inner">
-      <h1 class="hero-title">Markets with <span class="highlight">≥70%</span> Confidence</h1>
-      <p class="hero-subtitle">Real-time scan of Polymarket · Sorted by highest probability · Updated every 60 seconds
-      </p>
+  <!-- ══════════════════════════════════════════════════════════════════════════ -->
+  <!-- PAGE: SCANNER                                                             -->
+  <!-- ══════════════════════════════════════════════════════════════════════════ -->
+  <div id="page-scanner" class="page active-page">
 
-      <!-- Search -->
-      <div class="search-wrap">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="searchInput" class="search-input" placeholder="Search markets…" autocomplete="off" />
-        <button class="search-clear" id="searchClear" style="display:none">✕</button>
+    <section class="hero">
+      <div class="hero-inner">
+        <h1 class="hero-title">Markets with <span class="highlight">≥70%</span> Confidence</h1>
+        <p class="hero-subtitle">Real-time scan of Polymarket · Sorted by highest probability · Updated every 60 seconds
+        </p>
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="searchInput" class="search-input" placeholder="Search markets…" autocomplete="off" />
+          <button class="search-clear" id="searchClear" style="display:none">✕</button>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- ── MAIN CONTENT ───────────────────────────────────────────────── -->
-  <main class="main">
-
-    <!-- Category Tabs -->
-    <div class="tabs-wrap">
-      <div class="tabs" id="categoryTabs">
-        <button class="tab active" data-cat="all">🌐 All</button>
-        <button class="tab" data-cat="crypto">₿ Crypto</button>
-        <button class="tab" data-cat="sports">⚽ Sports</button>
-        <button class="tab" data-cat="politics">🏛️ Politics</button>
-        <button class="tab" data-cat="finance">📈 Finance</button>
-        <button class="tab" data-cat="technology">💻 Technology</button>
-        <button class="tab" data-cat="other">🔮 Other</button>
+    <main class="main">
+      <div class="tabs-wrap">
+        <div class="tabs" id="categoryTabs">
+          <button class="tab active" data-cat="all">🌐 All</button>
+          <button class="tab" data-cat="crypto">₿ Crypto</button>
+          <button class="tab" data-cat="sports">⚽ Sports</button>
+          <button class="tab" data-cat="politics">🏛️ Politics</button>
+          <button class="tab" data-cat="finance">📈 Finance</button>
+          <button class="tab" data-cat="technology">💻 Technology</button>
+          <button class="tab" data-cat="other">🔮 Other</button>
+        </div>
       </div>
-    </div>
 
-    <!-- Markets Grid -->
-    <div class="section-header">
-      <h2 class="section-title">High-Confidence Markets</h2>
-      <div class="last-updated" id="lastUpdated">Fetching data…</div>
-    </div>
+      <div class="section-header">
+        <h2 class="section-title">High-Confidence Markets</h2>
+        <div class="last-updated" id="lastUpdated">Fetching data…</div>
+      </div>
 
-    <div class="markets-grid" id="marketsGrid">
-      <!-- Skeleton placeholders -->
-      <div class="skeleton-card"></div>
-      <div class="skeleton-card"></div>
-      <div class="skeleton-card"></div>
-      <div class="skeleton-card"></div>
-      <div class="skeleton-card"></div>
-      <div class="skeleton-card"></div>
-    </div>
+      <div class="markets-grid" id="marketsGrid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+      <div class="empty-state" id="emptyState" style="display:none">
+        <span class="empty-icon">🔭</span>
+        <p>No markets found for this filter.</p>
+      </div>
+    </main>
+  </div>
 
-    <div class="empty-state" id="emptyState" style="display:none">
-      <span class="empty-icon">🔭</span>
-      <p>No markets found for this filter.</p>
-    </div>
+  <!-- ══════════════════════════════════════════════════════════════════════════ -->
+  <!-- PAGE: HOT BETS                                                            -->
+  <!-- ══════════════════════════════════════════════════════════════════════════ -->
+  <div id="page-hotbets" class="page" style="display:none">
+    <section class="hero hot-hero">
+      <div class="hero-inner">
+        <h1 class="hero-title">🔥 <span class="highlight">Hot Bets</span></h1>
+        <p class="hero-subtitle">Markets ranked by number of bets placed in the last 5 minutes · Tracked from live
+          activity feed</p>
+      </div>
+    </section>
 
-    <!-- ── LEADERBOARD ──────────────────────────────────────────────── -->
-    <div class="section-header leaderboard-header">
-      <h2 class="section-title">🏆 Top Predictors Leaderboard</h2>
-      <p class="section-sub">Users ranked by all-time profit on Polymarket</p>
-    </div>
+    <main class="main">
+      <div class="section-header">
+        <h2 class="section-title">🏃 Trending by Activity</h2>
+        <div class="last-updated" id="hotLastUpdated">Loading activity…</div>
+      </div>
 
-    <div class="leaderboard-wrap">
-      <table class="leaderboard-table" id="leaderboardTable">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Trader</th>
-            <th>All-Time Profit</th>
-            <th>Win Rate</th>
-            <th>Trades</th>
-            <th>Predictions</th>
-          </tr>
-        </thead>
-        <tbody id="leaderboardBody">
-          <tr>
-            <td colspan="5" class="loading-row">Loading leaderboard…</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      <div class="hot-bets-grid" id="hotBetsGrid">
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+        <div class="skeleton-card"></div>
+      </div>
+      <div class="empty-state" id="hotEmptyState" style="display:none">
+        <span class="empty-icon">⏳</span>
+        <p>Collecting activity data… check back in 30 seconds.</p>
+      </div>
+    </main>
+  </div>
 
-  </main>
+  <!-- ══════════════════════════════════════════════════════════════════════════ -->
+  <!-- PAGE: LEADERBOARD                                                         -->
+  <!-- ══════════════════════════════════════════════════════════════════════════ -->
+  <div id="page-leaderboard" class="page" style="display:none">
+    <section class="hero lb-hero">
+      <div class="hero-inner">
+        <h1 class="hero-title">🏆 <span class="highlight">Top Predictors</span></h1>
+        <p class="hero-subtitle">Ranked by all-time profit on Polymarket · Click a trader to view their profile</p>
+      </div>
+    </section>
 
-  <!-- ── FOOTER ─────────────────────────────────────────────────────── -->
+    <main class="main">
+      <!-- Time period + category filter row -->
+      <div class="lb-filter-row">
+        <div class="lb-filter-group">
+          <span class="lb-filter-label">Period:</span>
+          <div class="lb-pills" id="lbTimePills">
+            <button class="lb-pill active" data-tp="ALL">All Time</button>
+            <button class="lb-pill" data-tp="MONTH">Monthly</button>
+            <button class="lb-pill" data-tp="WEEK">Weekly</button>
+            <button class="lb-pill" data-tp="DAY">Today</button>
+          </div>
+        </div>
+        <div class="lb-filter-group">
+          <span class="lb-filter-label">Category:</span>
+          <div class="lb-pills" id="lbCatPills">
+            <button class="lb-pill active" data-cat="OVERALL">Overall</button>
+            <button class="lb-pill" data-cat="POLITICS">Politics</button>
+            <button class="lb-pill" data-cat="SPORTS">Sports</button>
+            <button class="lb-pill" data-cat="CRYPTO">Crypto</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="leaderboard-wrap" id="leaderboardWrap">
+        <table class="leaderboard-table" id="leaderboardTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Trader</th>
+              <th>Profit</th>
+              <th>Win Rate</th>
+              <th>Trades</th>
+              <th>Predictions</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody">
+            <tr>
+              <td colspan="6" class="loading-row">Loading leaderboard…</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <!-- ── FOOTER ───────────────────────────────────────────────────────────────── -->
   <footer class="footer">
-    <p>Data sourced from <a href="https://polymarket.com" target="_blank" rel="noreferrer">Polymarket</a> public API ·
-      Not financial advice</p>
+    <p>Data from <a href="https://polymarket.com" target="_blank" rel="noreferrer">Polymarket</a> public API · Not
+      financial advice · Auto-refreshes every 60s</p>
   </footer>
 
   <script src="app.js"></script>
