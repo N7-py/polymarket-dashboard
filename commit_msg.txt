@@ -1,1 +1,1 @@
-Fix Oops issue: switch to events API for valid slugs
+Add My Favorite Bets page with statistical scoring engine

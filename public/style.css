@@ -1347,3 +1347,281 @@ body::before {
   opacity: 0.5;
   font-style: italic;
 }
+
+/* ─── My Favorite Bets page ──────────────────────────────────────────────────── */
+.picks-hero {
+  padding-bottom: 24px;
+}
+
+/* Methodology card */
+.methodology-card {
+  background: linear-gradient(135deg, rgba(108, 99, 255, 0.08), rgba(0, 212, 170, 0.05));
+  border: 1px solid rgba(108, 99, 255, 0.2);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 20px;
+}
+
+.method-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.method-factors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.method-factor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 14px;
+  flex-shrink: 0;
+}
+
+.method-icon {
+  font-size: 1.1rem;
+}
+
+.method-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.method-weight {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+.method-disclaimer {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* Tier legend */
+.tier-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.tier-badge {
+  padding: 4px 12px;
+  border: 1px solid;
+  border-radius: 100px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+/* Picks grid */
+.picks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 18px;
+  margin-bottom: 60px;
+}
+
+/* Pick card */
+.pick-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition), background var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.pick-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #6c63ff, #00d4aa);
+}
+
+.pick-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 60px rgba(108, 99, 255, 0.2);
+  border-color: rgba(108, 99, 255, 0.3);
+  background: var(--card-hover);
+}
+
+.pick-card:hover .open-link {
+  opacity: 1;
+}
+
+/* Pick header */
+.pick-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pick-rank {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+  min-width: 28px;
+}
+
+.pick-tier-badge {
+  padding: 3px 10px;
+  border: 1px solid;
+  border-radius: 100px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  flex: 1;
+}
+
+.pick-score-pill {
+  padding: 3px 10px;
+  border: 1px solid;
+  border-radius: 100px;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+}
+
+/* Title */
+.pick-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* Probability bar */
+.pick-prob-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pick-prob-num {
+  font-size: 1.4rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  min-width: 52px;
+}
+
+.pick-prob-bar-wrap {
+  flex: 1;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.pick-prob-bar {
+  height: 100%;
+  border-radius: 100px;
+  transition: width 0.8s ease;
+}
+
+.pick-outcome-lbl {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  max-width: 90px;
+  text-align: right;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Safety score bar */
+.pick-score-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pick-score-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-dim);
+  font-weight: 700;
+  min-width: 72px;
+}
+
+.pick-score-track {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.pick-score-fill {
+  height: 100%;
+  border-radius: 100px;
+  transition: width 0.8s ease;
+}
+
+.pick-score-val {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 28px;
+  text-align: right;
+}
+
+/* AI reasoning */
+.pick-reasoning {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 2px solid rgba(108, 99, 255, 0.4);
+  border-radius: 0 8px 8px 0;
+}
+
+/* Factor chips */
+.pick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pick-chip {
+  padding: 3px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Pick footer */
+.pick-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+}

@@ -68,7 +68,7 @@ function openMarket(url) {
 
 // ─── SPA navigation ────────────────────────────────────────────────────────────
 function navigateTo(page) {
-  ['scanner', 'hotbets', 'leaderboard'].forEach(p => {
+  ['scanner', 'hotbets', 'mypicks', 'leaderboard'].forEach(p => {
     const el = document.getElementById(`page-${p}`);
     if (el) el.style.display = (p === page ? '' : 'none');
     const btn = document.querySelector(`[data-page="${p}"]`);
@@ -76,6 +76,7 @@ function navigateTo(page) {
   });
   currentPage = page;
   if (page === 'hotbets') loadHotBets();
+  if (page === 'mypicks') loadMyPicks();
   if (page === 'leaderboard') loadLeaderboard();
 }
 
@@ -295,6 +296,73 @@ function renderHotBets(bets) {
       <div class="card-footer">
         <span class="end-date">📅 Activity tracked live</span>
         <span class="open-link">View on Polymarket ↗</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── MY FAVORITE BETS ─────────────────────────────────────────────────────────
+let picksLoading = false;
+async function loadMyPicks() {
+  if (picksLoading) return;
+  picksLoading = true;
+  document.getElementById('picksGrid').innerHTML = `<div class="skeleton-card" style="height:260px"></div>`.repeat(4);
+  try {
+    const res = await fetch(`${API_BASE}/api/favoritebets`);
+    const data = await res.json();
+    renderMyPicks(data.favorites || []);
+  } catch (err) {
+    console.error('My picks error:', err);
+    document.getElementById('picksGrid').innerHTML =
+      `<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-muted)"><p>⚠️ Could not load picks.</p></div>`;
+  } finally { picksLoading = false; }
+}
+
+function renderMyPicks(picks) {
+  const grid = document.getElementById('picksGrid');
+  const empty = document.getElementById('picksEmpty');
+  if (!picks || picks.length === 0) {
+    grid.style.display = 'none'; empty.style.display = 'block'; return;
+  }
+  grid.style.display = 'grid'; empty.style.display = 'none';
+  grid.innerHTML = picks.map(p => {
+    const scoreW = Math.round(p.safetyScore);
+    return `
+    <div class="pick-card" onclick="openMarket('${escHtml(p.url)}')" role="button" tabindex="0">
+      <div class="pick-header">
+        <div class="pick-rank">#${p.favoriteRank}</div>
+        <span class="pick-tier-badge" style="border-color:${escHtml(p.tierColor)};color:${escHtml(p.tierColor)}">
+          ${p.tierIcon} ${escHtml(p.tier)}
+        </span>
+        <div class="pick-score-pill" style="background:${escHtml(p.tierColor)}22;color:${escHtml(p.tierColor)};border-color:${escHtml(p.tierColor)}44">
+          ${p.safetyScore}<span style="font-size:0.6rem;opacity:0.7">/100</span>
+        </div>
+      </div>
+      <div class="pick-title">${escHtml(p.title)}</div>
+      <div class="pick-prob-row">
+        <span class="pick-prob-num" style="color:${escHtml(p.tierColor)}">${p.probability}%</span>
+        <div class="pick-prob-bar-wrap">
+          <div class="pick-prob-bar" style="width:${p.probability}%;background:${escHtml(p.tierColor)}"></div>
+        </div>
+        <span class="pick-outcome-lbl">${escHtml(p.winningOutcome)}</span>
+      </div>
+      <div class="pick-score-row">
+        <span class="pick-score-label">Safety Score</span>
+        <div class="pick-score-track">
+          <div class="pick-score-fill" style="width:${scoreW}%;background:linear-gradient(90deg,${escHtml(p.tierColor)},#6c63ff)"></div>
+        </div>
+        <span class="pick-score-val">${p.safetyScore}</span>
+      </div>
+      <div class="pick-reasoning">${escHtml(p.reasoning)}</div>
+      <div class="pick-chips">
+        <span class="pick-chip">💧 ${formatMoney(p.liquidity)}</span>
+        <span class="pick-chip">📈 ${formatMoney(p.volume24h || p.volume)} vol</span>
+        ${(p.totalBets || 0) > 0 ? `<span class="pick-chip">👥 ${p.totalBets.toLocaleString()}</span>` : ''}
+        <span class="pick-chip cat-${p.category}">${catLabel(p.category)}</span>
+      </div>
+      <div class="pick-footer">
+        <span class="end-date">⏱ ${formatDate(p.endDate)}</span>
+        <span class="open-link">Bet on Polymarket ↗</span>
       </div>
     </div>`;
   }).join('');

@@ -29,6 +29,7 @@
       <nav class="main-nav" id="mainNav">
         <button class="nav-btn active" data-page="scanner" id="navScanner">📊 Scanner</button>
         <button class="nav-btn" data-page="hotbets" id="navHotbets">🔥 Hot Bets</button>
+        <button class="nav-btn" data-page="mypicks" id="navMypicks">💎 My Picks</button>
         <button class="nav-btn" data-page="leaderboard" id="navLeaderboard">🏆 Leaderboard</button>
       </nav>
 
@@ -159,7 +160,83 @@
   </div>
 
   <!-- ══════════════════════════════════════════════════════════════════════════ -->
-  <!-- PAGE: LEADERBOARD                                                         -->
+  <!-- PAGE: MY FAVORITE BETS                                                    -->
+  <!-- ══════════════════════════════════════════════════════════════════════════ -->
+  <div id="page-mypicks" class="page" style="display:none">
+    <section class="hero picks-hero">
+      <div class="hero-inner">
+        <h1 class="hero-title">💎 <span class="highlight">My Favorite Bets</span></h1>
+        <p class="hero-subtitle">Top 10 safest bets — ranked by a multi-factor statistical model combining probability,
+          liquidity, market depth, trading volume, and category calibration</p>
+      </div>
+    </section>
+
+    <main class="main">
+
+      <!-- Methodology card -->
+      <div class="methodology-card">
+        <div class="method-title">📐 Scoring Methodology</div>
+        <div class="method-factors">
+          <div class="method-factor">
+            <span class="method-icon">🎯</span>
+            <div>
+              <div class="method-name">Probability</div>
+              <div class="method-weight">35% weight</div>
+            </div>
+          </div>
+          <div class="method-factor">
+            <span class="method-icon">💧</span>
+            <div>
+              <div class="method-name">Liquidity Depth</div>
+              <div class="method-weight">25% weight</div>
+            </div>
+          </div>
+          <div class="method-factor">
+            <span class="method-icon">👥</span>
+            <div>
+              <div class="method-name">Wisdom of Crowds</div>
+              <div class="method-weight">20% weight</div>
+            </div>
+          </div>
+          <div class="method-factor">
+            <span class="method-icon">📈</span>
+            <div>
+              <div class="method-name">24h Volume</div>
+              <div class="method-weight">15% weight</div>
+            </div>
+          </div>
+          <div class="method-factor">
+            <span class="method-icon">🔬</span>
+            <div>
+              <div class="method-name">Category Calibration</div>
+              <div class="method-weight">5% weight</div>
+            </div>
+          </div>
+        </div>
+        <div class="method-disclaimer">⚠️ Not financial advice. For entertainment & research only.</div>
+      </div>
+
+      <!-- Tier legend -->
+      <div class="tier-legend">
+        <span class="tier-badge" style="border-color:#00d4aa;color:#00d4aa">🔒 Locked In</span>
+        <span class="tier-badge" style="border-color:#6c63ff;color:#6c63ff">⭐ Strong Pick</span>
+        <span class="tier-badge" style="border-color:#3498db;color:#3498db">✅ Solid Bet</span>
+        <span class="tier-badge" style="border-color:#f7931a;color:#f7931a">📊 Speculative</span>
+      </div>
+
+      <div class="picks-grid" id="picksGrid">
+        <div class="skeleton-card" style="height:260px"></div>
+        <div class="skeleton-card" style="height:260px"></div>
+        <div class="skeleton-card" style="height:260px"></div>
+        <div class="skeleton-card" style="height:260px"></div>
+      </div>
+      <div class="empty-state" id="picksEmpty" style="display:none">
+        <span class="empty-icon">🔭</span>
+        <p>No data yet — check back shortly.</p>
+      </div>
+    </main>
+  </div>
+
   <!-- ══════════════════════════════════════════════════════════════════════════ -->
   <div id="page-leaderboard" class="page" style="display:none">
     <section class="hero lb-hero">
