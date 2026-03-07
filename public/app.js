@@ -304,8 +304,10 @@ function renderHotBets(bets) {
 // ─── SMART MONEY PICKS ────────────────────────────────────────────────────────
 let smartPicksLoaded = false;
 let smartPicksLoading = false;
+window.smartPicksData = null;
 
-function toggleSmartPicks() {
+function toggleSmartPicks(event) {
+  if (event && event.target.closest('.smart-filter')) return;
   const body = document.getElementById('smartBody');
   const btn = document.getElementById('smartExpandBtn');
   const isHidden = body.style.display === 'none';
@@ -313,6 +315,16 @@ function toggleSmartPicks() {
   btn.textContent = isHidden ? 'Hide Picks ▲' : 'Load Picks ▼';
   if (isHidden && !smartPicksLoaded) {
     loadSmartPicks();
+  }
+}
+
+function updateSmartFilter() {
+  const slider = document.getElementById('smartMinEndorsers');
+  const display = document.getElementById('smartMinDisplay');
+  if (!slider || !display) return;
+  display.textContent = slider.value;
+  if (window.smartPicksData) {
+    renderSmartPicks(window.smartPicksData);
   }
 }
 
@@ -324,6 +336,7 @@ async function loadSmartPicks() {
     const res = await fetch(`${API_BASE}/api/smartpicks`);
     const data = await res.json();
     smartPicksLoaded = true;
+    window.smartPicksData = data;
     renderSmartPicks(data);
   } catch (err) {
     console.error('Smart picks error:', err);
@@ -336,8 +349,11 @@ async function loadSmartPicks() {
 function renderSmartPicks(data) {
   const strip = document.getElementById('smartStatStrip');
   const grid = document.getElementById('smartPicksGrid');
+  const slider = document.getElementById('smartMinEndorsers');
+  const minEndorsers = slider ? parseInt(slider.value) : 2;
+
   const traders = data.streakTraders || [];
-  const picks = data.picks || [];
+  let picks = data.picks || [];
 
   if (traders.length === 0) {
     strip.innerHTML = `No traders currently on a 10+ winning streak meeting criteria.`;
@@ -345,10 +361,13 @@ function renderSmartPicks(data) {
     return;
   }
 
-  strip.innerHTML = `Analyzing <b>${traders.length}</b> top leaderboard traders currently on a winning streak (≥60% win rate, 10+ bets). Found <b>${picks.length}</b> shared convictions.`;
+  // Filter based on the slider value
+  picks = picks.filter(p => p.endorserCount >= minEndorsers);
+
+  strip.innerHTML = `Analyzing <b>${traders.length}</b> top leaderboard traders currently on a winning streak (≥60% win rate, 10+ bets). Found <b>${picks.length}</b> shared convictions with ${minEndorsers}+ backers.`;
 
   if (picks.length === 0) {
-    grid.innerHTML = `<div style="text-align:center;color:var(--text-dim);grid-column:1/-1;padding:20px">No shared markets found among streak traders right now.</div>`;
+    grid.innerHTML = `<div style="text-align:center;color:var(--text-dim);grid-column:1/-1;padding:20px">No shared markets found with ${minEndorsers} or more streak traders. Try lowering the slider.</div>`;
     return;
   }
 

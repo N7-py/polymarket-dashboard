@@ -226,10 +226,21 @@
 
       <!-- 🏆 Leaderboard Picks (Smart Money) -->
       <div class="smart-section" id="smartSection">
-        <div class="smart-header" id="smartToggle" onclick="toggleSmartPicks()">
+        <div class="smart-header" id="smartToggle" onclick="toggleSmartPicks(event)">
           <div class="smart-header-left">
-            <span class="smart-badge">🏆 LEADERBOARD PICKS</span>
-            <span class="smart-desc">Common bets from top traders on winning streaks of 10+ bets</span>
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span class="smart-badge">🏆 LEADERBOARD PICKS</span>
+              <span class="smart-desc">Common bets from top traders on winning streaks of 10+ bets</span>
+            </div>
+
+            <!-- Min Endorsers Filter -->
+            <div class="smart-filter" onclick="event.stopPropagation()">
+              <label for="smartMinEndorsers"
+                style="font-size:0.75rem;font-weight:700;color:var(--text-dim);white-space:nowrap;">Min Traders:</label>
+              <input type="range" id="smartMinEndorsers" class="range-input" style="width:100px;margin:0 8px" min="2"
+                max="20" value="2" step="1" oninput="updateSmartFilter()" />
+              <span id="smartMinDisplay" style="font-weight:800;color:var(--accent);min-width:24px;">2</span>
+            </div>
           </div>
           <button class="smart-expand-btn" id="smartExpandBtn">Load Picks ▼</button>
         </div>
