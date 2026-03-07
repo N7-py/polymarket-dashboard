@@ -31,6 +31,13 @@ function formatMoney(val) {
   return '$' + val.toFixed(0);
 }
 
+function formatMoneyNumber(val) {
+  if (!val || isNaN(val)) return '0';
+  if (val >= 1_000_000) return (val / 1_000_000).toFixed(1) + 'M';
+  if (val >= 1_000) return (val / 1_000).toFixed(0) + 'K';
+  return val.toFixed(0);
+}
+
 function formatDate(dateStr) {
   if (!dateStr) return '—';
   try {
