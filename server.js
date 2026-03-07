@@ -211,7 +211,7 @@ function shortenAddress(addr) {
  * 5. Markets held by 2+ streak traders = "Smart Money Pick"
  * 6. Sort by endorser count, then by collective avg position size
  */
-async function fetchSmartPicks() {
+async function fetchSmartPicks(minStreak = 10) {
   try {
     // Step 1: Get top 20 weekly traders
     const res = await axios.get('https://data-api.polymarket.com/v1/leaderboard', {
@@ -236,7 +236,7 @@ async function fetchSmartPicks() {
       .filter(u =>
         u.address &&                    // must have a real address
         u.percentPositive >= 60 &&      // ≥60% win rate = hot streak proxy
-        u.tradesCount >= 10             // at least 10 trades to qualify
+        u.tradesCount >= minStreak      // adjustable minimum trades
       )
       .slice(0, 15);                    // cap at 15 to avoid rate limiting
 
@@ -324,12 +324,14 @@ async function fetchStreakPositions(address) {
 
 app.get('/api/smartpicks', async (req, res) => {
   try {
-    const result = await fetchSmartPicks();
+    const minStreak = parseInt(req.query.minStreak) || 10;
+    const result = await fetchSmartPicks(minStreak);
     res.json({ success: true, generated: new Date().toISOString(), ...result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
 
 // ─── Hot Bets: background trade poller ────────────────────────────────────────
 

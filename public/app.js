@@ -332,8 +332,12 @@ async function loadSmartPicks() {
   if (smartPicksLoading) return;
   smartPicksLoading = true;
   document.getElementById('smartPicksGrid').innerHTML = `<div class="skeleton-card" style="height:140px"></div>`.repeat(2);
+
+  const streakSlider = document.getElementById('smartMinStreak');
+  const minStreak = streakSlider ? parseInt(streakSlider.value) : 10;
+
   try {
-    const res = await fetch(`${API_BASE}/api/smartpicks`);
+    const res = await fetch(`${API_BASE}/api/smartpicks?minStreak=${minStreak}`);
     const data = await res.json();
     smartPicksLoaded = true;
     window.smartPicksData = data;
@@ -351,12 +355,14 @@ function renderSmartPicks(data) {
   const grid = document.getElementById('smartPicksGrid');
   const slider = document.getElementById('smartMinEndorsers');
   const minEndorsers = slider ? parseInt(slider.value) : 2;
+  const streakSlider = document.getElementById('smartMinStreak');
+  const minStreak = streakSlider ? parseInt(streakSlider.value) : 10;
 
   const traders = data.streakTraders || [];
   let picks = data.picks || [];
 
   if (traders.length === 0) {
-    strip.innerHTML = `No traders currently on a 10+ winning streak meeting criteria.`;
+    strip.innerHTML = `No traders currently on a ${minStreak}+ winning streak meeting criteria.`;
     grid.innerHTML = '';
     return;
   }
@@ -364,12 +370,13 @@ function renderSmartPicks(data) {
   // Filter based on the slider value
   picks = picks.filter(p => p.endorserCount >= minEndorsers);
 
-  strip.innerHTML = `Analyzing <b>${traders.length}</b> top leaderboard traders currently on a winning streak (≥60% win rate, 10+ bets). Found <b>${picks.length}</b> shared convictions with ${minEndorsers}+ backers.`;
+  strip.innerHTML = `Analyzing <b>${traders.length}</b> top leaderboard traders currently on a winning streak (≥60% win rate, ${minStreak}+ bets). Found <b>${picks.length}</b> shared convictions with ${minEndorsers}+ backers.`;
 
   if (picks.length === 0) {
-    grid.innerHTML = `<div style="text-align:center;color:var(--text-dim);grid-column:1/-1;padding:20px">No shared markets found with ${minEndorsers} or more streak traders. Try lowering the slider.</div>`;
+    grid.innerHTML = `<div style="text-align:center;color:var(--text-dim);grid-column:1/-1;padding:20px">No shared markets found with ${minEndorsers} or more streak traders. Try lowering the Traders slider.</div>`;
     return;
   }
+
 
   grid.innerHTML = picks.map(p => {
     return `

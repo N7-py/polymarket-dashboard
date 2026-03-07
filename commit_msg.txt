@@ -1,1 +1,1 @@
-Add minimum endorser slider filter to Leaderboard Picks
+Add winning streak length slider to Leaderboard Picks
