@@ -1,1 +1,1 @@
-Add winning streak length slider to Leaderboard Picks
+Lower Min Streak slider to 3, remove Min Traders slider

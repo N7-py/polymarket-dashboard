@@ -230,7 +230,7 @@
           <div class="smart-header-left">
             <div style="display:flex;align-items:center;gap:12px;">
               <span class="smart-badge">🏆 LEADERBOARD PICKS</span>
-              <span class="smart-desc">Common bets from top traders on winning streaks of 10+ bets</span>
+              <span class="smart-desc">Common bets from top traders on winning streaks</span>
             </div>
 
             <div style="display:flex;align-items:center;">
@@ -239,22 +239,11 @@
                 <label for="smartMinStreak"
                   style="font-size:0.75rem;font-weight:700;color:var(--text-dim);white-space:nowrap;">Win Streak
                   ≥</label>
-                <input type="range" id="smartMinStreak" class="range-input" style="width:80px;margin:0 8px" min="5"
+                <input type="range" id="smartMinStreak" class="range-input" style="width:80px;margin:0 8px" min="3"
                   max="50" value="10" step="1"
                   oninput="document.getElementById('smartStreakDisplay').textContent=this.value"
                   onchange="loadSmartPicks()" />
                 <span id="smartStreakDisplay" style="font-weight:800;color:var(--accent);min-width:20px;">10</span>
-              </div>
-
-              <!-- Min Traders Filter -->
-              <div class="smart-filter" onclick="event.stopPropagation()"
-                style="margin-left:12px;padding-left:12px;border-left:1px solid rgba(255,255,255,0.1)">
-                <label for="smartMinEndorsers"
-                  style="font-size:0.75rem;font-weight:700;color:var(--text-dim);white-space:nowrap;">Min
-                  Traders:</label>
-                <input type="range" id="smartMinEndorsers" class="range-input" style="width:80px;margin:0 8px" min="2"
-                  max="20" value="2" step="1" oninput="updateSmartFilter()" />
-                <span id="smartMinDisplay" style="font-weight:800;color:var(--accent);min-width:20px;">2</span>
               </div>
             </div>
           </div>
