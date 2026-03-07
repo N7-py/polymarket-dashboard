@@ -224,6 +224,24 @@
         <span class="tier-badge" style="border-color:#f7931a;color:#f7931a">📊 Speculative</span>
       </div>
 
+      <!-- 🏆 Leaderboard Picks (Smart Money) -->
+      <div class="smart-section" id="smartSection">
+        <div class="smart-header" id="smartToggle" onclick="toggleSmartPicks()">
+          <div class="smart-header-left">
+            <span class="smart-badge">🏆 LEADERBOARD PICKS</span>
+            <span class="smart-desc">Common bets from top traders on winning streaks of 10+ bets</span>
+          </div>
+          <button class="smart-expand-btn" id="smartExpandBtn">Load Picks ▼</button>
+        </div>
+        <div id="smartBody" style="display:none">
+          <div class="smart-stat-strip" id="smartStatStrip"></div>
+          <div class="smart-picks-grid" id="smartPicksGrid">
+            <div style="padding:24px;text-align:center;color:var(--text-dim);font-size:0.85rem">Click "Load Picks" above
+              to analyse leaderboard traders.</div>
+          </div>
+        </div>
+      </div>
+
       <div class="picks-grid" id="picksGrid">
         <div class="skeleton-card" style="height:260px"></div>
         <div class="skeleton-card" style="height:260px"></div>

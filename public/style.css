@@ -1427,7 +1427,175 @@ body::before {
   font-weight: 700;
 }
 
+/* ─── Leaderboard / Smart Picks Section ────────────────────────────────────────── */
+.smart-section {
+  background: var(--card);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: var(--radius);
+  margin-bottom: 30px;
+  overflow: hidden;
+}
+
+.smart-header {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.05), transparent);
+  transition: background 0.2s;
+}
+
+.smart-header:hover {
+  background: rgba(255, 215, 0, 0.08);
+}
+
+.smart-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.smart-badge {
+  background: rgba(255, 215, 0, 0.15);
+  color: #ffd700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.smart-desc {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+
+.smart-expand-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.smart-stat-strip {
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.smart-stat-strip b {
+  color: var(--text);
+}
+
+.smart-picks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+/* Smart Pick Card */
+.smart-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s;
+  position: relative;
+}
+
+.smart-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 215, 0, 0.5);
+  box-shadow: 0 8px 24px rgba(255, 215, 0, 0.05);
+}
+
+.smart-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.smart-rank {
+  background: rgba(255, 215, 0, 0.2);
+  color: #ffd700;
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.smart-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.smart-card-mid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.smart-endorsers {
+  text-align: right;
+}
+
+.smart-endorser-count {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.smart-avatars {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.smart-ava {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--card-hover);
+  border: 2px solid var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.55rem;
+  font-weight: 800;
+  color: var(--text);
+  margin-left: -6px;
+  position: relative;
+}
+
+.smart-card-bot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  border-top: 1px dashed rgba(255, 255, 255, 0.1);
+  padding-top: 10px;
+}
+
 /* Picks grid */
+
 .picks-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));

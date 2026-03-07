@@ -1,1 +1,1 @@
-Add My Favorite Bets page with statistical scoring engine
+Add Leaderboard Picks: find common bets among win-streak traders

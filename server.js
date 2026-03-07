@@ -200,7 +200,139 @@ function shortenAddress(addr) {
   return addr.slice(0, 6) + '…' + addr.slice(-4);
 }
 
+// ─── Smart Money / Leaderboard Picks ──────────────────────────────────────────
+/*
+ * Algorithm:
+ * 1. Fetch top 20 WEEKLY leaderboard traders (best recent performance)
+ * 2. Filter to "hot streak" traders: percentPositive >= 60% AND tradesCount >= 10
+ *    (this is the best proxy for a 10+ winning streak available from the API)
+ * 3. Fetch their open positions in parallel (rate-limited, max 15 traders)
+ * 4. Group positions by market title — count how many streak traders hold each market
+ * 5. Markets held by 2+ streak traders = "Smart Money Pick"
+ * 6. Sort by endorser count, then by collective avg position size
+ */
+async function fetchSmartPicks() {
+  try {
+    // Step 1: Get top 20 weekly traders
+    const res = await axios.get('https://data-api.polymarket.com/v1/leaderboard', {
+      params: { category: 'OVERALL', timePeriod: 'WEEK', orderBy: 'PNL', limit: 20 },
+      timeout: 15000, headers: { Accept: 'application/json' }
+    });
+    const data = res.data;
+    const rankings = Array.isArray(data) ? data : (data.data || data.leaderboard || data.rankings || []);
+
+    if (rankings.length === 0) return { picks: [], streakTraders: [] };
+
+    // Step 2: Filter to winning-streak traders
+    const streakTraders = rankings
+      .map(u => ({
+        address: u.address || u.proxyWallet || '',
+        name: (u.name && u.name !== (u.address || u.proxyWallet)) ? u.name : (u.pseudonym || shortenAddress(u.address || u.proxyWallet || 'Anon')),
+        pnl: parseFloat(u.pnl) || 0,
+        percentPositive: parseFloat(u.percentPositive) || 0,
+        tradesCount: parseInt(u.numTrades) || parseInt(u.tradesCount) || 0,
+        profileUrl: (u.address || u.proxyWallet) ? `https://polymarket.com/profile/${u.address || u.proxyWallet}` : null,
+      }))
+      .filter(u =>
+        u.address &&                    // must have a real address
+        u.percentPositive >= 60 &&      // ≥60% win rate = hot streak proxy
+        u.tradesCount >= 10             // at least 10 trades to qualify
+      )
+      .slice(0, 15);                    // cap at 15 to avoid rate limiting
+
+    if (streakTraders.length === 0) return { picks: [], streakTraders: [] };
+
+    // Step 3: Fetch positions for all streak traders in parallel
+    const positionResults = await Promise.allSettled(
+      streakTraders.map(u => fetchStreakPositions(u.address))
+    );
+
+    // Step 4: Aggregate by market — count how many traders share each market
+    const marketMap = new Map(); // marketKey → { count, traders, positions, ... }
+
+    positionResults.forEach((result, idx) => {
+      if (result.status !== 'fulfilled') return;
+      const trader = streakTraders[idx];
+      const positions = result.value || [];
+
+      positions.forEach(pos => {
+        if (!pos.market || pos.market === 'Unknown Market') return;
+        // Use title as key (normalize to lowercase, trimmed)
+        const key = pos.market.toLowerCase().trim().slice(0, 80);
+        if (!marketMap.has(key)) {
+          marketMap.set(key, {
+            title: pos.market,
+            marketUrl: pos.marketUrl || null,
+            outcome: pos.outcome,
+            count: 0,
+            traders: [],
+            totalSize: 0,
+            avgProbability: pos.curPrice ? pos.curPrice * 100 : 0,
+            probSum: pos.curPrice ? pos.curPrice * 100 : 0,
+          });
+        }
+        const entry = marketMap.get(key);
+        entry.count++;
+        entry.traders.push({ name: trader.name, profileUrl: trader.profileUrl, pnl: trader.pnl, winRate: trader.percentPositive });
+        entry.totalSize += pos.size || 0;
+        entry.probSum += pos.curPrice ? pos.curPrice * 100 : 0;
+      });
+    });
+
+    // Step 5: Filter markets held by 2+ streak traders, sort by endorser count
+    const picks = [...marketMap.values()]
+      .filter(m => m.count >= 2)                                  // at least 2 smart traders agree
+      .sort((a, b) => b.count - a.count || b.totalSize - a.totalSize)
+      .slice(0, 10)
+      .map((m, idx) => ({
+        rank: idx + 1,
+        title: m.title,
+        url: m.marketUrl || `https://polymarket.com/event/${m.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60)}`,
+        outcome: m.outcome,
+        endorserCount: m.count,
+        endorsers: m.traders.slice(0, 5), // top 5 endorsing traders to show
+        totalExposure: m.totalSize,
+        avgProbability: m.count > 0 ? Math.round(m.probSum / m.count) : null,
+      }));
+
+    return { picks, streakTraders };
+  } catch (err) {
+    console.error('Smart picks error:', err.message);
+    return { picks: [], streakTraders: [] };
+  }
+}
+
+// Fetches positions for smart-picks (no limit, all open positions with positive value)
+async function fetchStreakPositions(address) {
+  if (!address) return [];
+  try {
+    const res = await axios.get('https://data-api.polymarket.com/positions', {
+      params: { user: address, sizeThreshold: 0.01, limit: 20 },
+      timeout: 10000, headers: { Accept: 'application/json' }
+    });
+    const rows = Array.isArray(res.data) ? res.data : (res.data.data || []);
+    return rows.map(p => ({
+      market: p.title || p.market || p.question || '',
+      outcome: p.outcome || p.side || 'Yes',
+      size: parseFloat(p.size) || parseFloat(p.currentValue) || 0,
+      curPrice: parseFloat(p.curPrice) || parseFloat(p.currentPrice) || 0,
+      marketUrl: p.eventSlug ? `https://polymarket.com/event/${p.eventSlug}` :
+        (p.slug ? `https://polymarket.com/event/${p.slug}` : null),
+    }));
+  } catch { return []; }
+}
+
+app.get('/api/smartpicks', async (req, res) => {
+  try {
+    const result = await fetchSmartPicks();
+    res.json({ success: true, generated: new Date().toISOString(), ...result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ─── Hot Bets: background trade poller ────────────────────────────────────────
+
 const HOT_WINDOW_MS = 5 * 60 * 1000; // 5-minute rolling window
 const HOT_POLL_INTERVAL = 30 * 1000; // poll every 30s
 

@@ -301,7 +301,86 @@ function renderHotBets(bets) {
   }).join('');
 }
 
+// ─── SMART MONEY PICKS ────────────────────────────────────────────────────────
+let smartPicksLoaded = false;
+let smartPicksLoading = false;
+
+function toggleSmartPicks() {
+  const body = document.getElementById('smartBody');
+  const btn = document.getElementById('smartExpandBtn');
+  const isHidden = body.style.display === 'none';
+  body.style.display = isHidden ? 'block' : 'none';
+  btn.textContent = isHidden ? 'Hide Picks ▲' : 'Load Picks ▼';
+  if (isHidden && !smartPicksLoaded) {
+    loadSmartPicks();
+  }
+}
+
+async function loadSmartPicks() {
+  if (smartPicksLoading) return;
+  smartPicksLoading = true;
+  document.getElementById('smartPicksGrid').innerHTML = `<div class="skeleton-card" style="height:140px"></div>`.repeat(2);
+  try {
+    const res = await fetch(`${API_BASE}/api/smartpicks`);
+    const data = await res.json();
+    smartPicksLoaded = true;
+    renderSmartPicks(data);
+  } catch (err) {
+    console.error('Smart picks error:', err);
+    document.getElementById('smartPicksGrid').innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:20px">⚠️ Failed to load Leaderboard Picks.</div>`;
+  } finally {
+    smartPicksLoading = false;
+  }
+}
+
+function renderSmartPicks(data) {
+  const strip = document.getElementById('smartStatStrip');
+  const grid = document.getElementById('smartPicksGrid');
+  const traders = data.streakTraders || [];
+  const picks = data.picks || [];
+
+  if (traders.length === 0) {
+    strip.innerHTML = `No traders currently on a 10+ winning streak meeting criteria.`;
+    grid.innerHTML = '';
+    return;
+  }
+
+  strip.innerHTML = `Analyzing <b>${traders.length}</b> top leaderboard traders currently on a winning streak (≥60% win rate, 10+ bets). Found <b>${picks.length}</b> shared convictions.`;
+
+  if (picks.length === 0) {
+    grid.innerHTML = `<div style="text-align:center;color:var(--text-dim);grid-column:1/-1;padding:20px">No shared markets found among streak traders right now.</div>`;
+    return;
+  }
+
+  grid.innerHTML = picks.map(p => {
+    return `
+    <div class="smart-card" onclick="openMarket('${escHtml(p.url)}')" role="button" tabindex="0">
+      <div class="smart-card-top">
+        <span class="smart-rank">#${p.rank}</span>
+        <div class="smart-title">${escHtml(p.title)}</div>
+      </div>
+      <div class="smart-card-mid">
+        <div class="smart-outcome">
+          <span style="font-size:0.7rem;color:var(--text-muted);display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.05em">Smart Money Bet</span>
+          <span style="font-size:1.1rem;font-weight:900;color:var(--accent)">${escHtml(p.outcome)}</span>
+        </div>
+        <div class="smart-endorsers">
+          <span class="smart-endorser-count">👥 ${p.endorserCount} top traders</span>
+          <div class="smart-avatars">
+            ${p.endorsers.map(e => `<span class="smart-ava tooltip" data-tip="${escHtml(e.name)}: ${e.winRate.toFixed(0)}% WR">${(e.name || 'U').slice(0, 2).toUpperCase()}</span>`).join('')}
+          </div>
+        </div>
+      </div>
+      <div class="smart-card-bot">
+        <span>💰 Total exposure: ${formatMoney(p.totalExposure)}</span>
+        <span>Avg Prob: ${p.avgProbability ? p.avgProbability + '%' : '—'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 // ─── MY FAVORITE BETS ─────────────────────────────────────────────────────────
+
 let picksLoading = false;
 async function loadMyPicks() {
   if (picksLoading) return;
