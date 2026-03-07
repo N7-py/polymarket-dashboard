@@ -89,14 +89,21 @@
 
     <main class="main">
       <div class="tabs-wrap">
-        <div class="tabs" id="categoryTabs">
-          <button class="tab active" data-cat="all">🌐 All</button>
-          <button class="tab" data-cat="crypto">₿ Crypto</button>
-          <button class="tab" data-cat="sports">⚽ Sports</button>
-          <button class="tab" data-cat="politics">🏛️ Politics</button>
-          <button class="tab" data-cat="finance">📈 Finance</button>
-          <button class="tab" data-cat="technology">💻 Technology</button>
-          <button class="tab" data-cat="other">🔮 Other</button>
+        <div class="tabs-bar">
+          <div class="tabs" id="categoryTabs">
+            <button class="tab active" data-cat="all">🌐 All</button>
+            <button class="tab" data-cat="crypto">₿ Crypto</button>
+            <button class="tab" data-cat="sports">⚽ Sports</button>
+            <button class="tab" data-cat="politics">🏛️ Politics</button>
+            <button class="tab" data-cat="finance">📈 Finance</button>
+            <button class="tab" data-cat="technology">💻 Technology</button>
+            <button class="tab" data-cat="other">🔮 Other</button>
+          </div>
+          <label class="hide-ended-toggle" id="hideEndedLabel" title="Hide markets whose end date has already passed">
+            <input type="checkbox" id="hideEndedChk" />
+            <span class="toggle-track"><span class="toggle-thumb"></span></span>
+            <span class="toggle-label">Hide Ended</span>
+          </label>
         </div>
       </div>
 

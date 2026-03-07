@@ -57,20 +57,28 @@ async function fetchMarkets() {
       const maxIdx = numPrices.indexOf(maxProb);
       if (maxProb >= 0.50) {
         const title = m.question || m.title || '';
-        // Skip markets with placeholder or unforecasted content
         const titleLower = title.toLowerCase();
+        // Skip unforecasted / placeholder titles
         if (!title ||
-          titleLower.includes("oops") ||
+          titleLower.includes('oops') ||
           titleLower.includes("didn't forecast") ||
-          titleLower.includes("did not forecast") ||
-          titleLower.includes("could not forecast") ||
-          titleLower.includes("no forecast") ||
-          titleLower.includes("unknown market") ||
+          titleLower.includes('did not forecast') ||
+          titleLower.includes('could not forecast') ||
+          titleLower.includes('no forecast') ||
+          titleLower.includes('unknown market') ||
           title.length < 10) continue;
 
+        // Skip markets without a real word-based slug — numeric or hex slugs
+        // produce "Oops…we didn't forecast this" on polymarket.com/event/...
+        const slug = m.slug || '';
+        const isValidSlug = slug.length >= 3 &&
+          !/^[0-9]+$/.test(slug) &&          // not a plain numeric ID
+          !/^0x[0-9a-f]+$/i.test(slug) &&    // not a hex conditionId
+          /[a-z]/i.test(slug);               // must contain at least one letter
+        if (!isValidSlug) continue;
+
         filtered.push({
-          id: m.id, title,
-          slug: m.slug || m.conditionId || m.id,
+          id: m.id, title, slug,
           category: detectCategory(title),
           probability: Math.round(maxProb * 1000) / 10,
           winningOutcome: outcomes[maxIdx] || 'Yes',
@@ -78,7 +86,7 @@ async function fetchMarkets() {
           volume24h: parseFloat(m.volume24hr) || 0,
           liquidity: parseFloat(m.liquidity) || 0,
           endDate: m.endDate || m.endDateIso || null,
-          url: `https://polymarket.com/event/${m.slug || m.id}`,
+          url: `https://polymarket.com/event/${slug}`,
           totalBets: parseInt(m.uniqueTraderCount) || 0,
         });
       }

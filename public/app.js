@@ -12,6 +12,7 @@ let searchQuery = '';
 let currentPage = 'scanner';
 let minProb = 70;   // slider min (default matches old ≥70% filter)
 let maxProb = 100;  // slider max
+let hideEnded = false; // hide markets whose end date has passed
 
 // Leaderboard state
 let lbTimePeriod = 'ALL';
@@ -179,6 +180,8 @@ function applyFilters() {
   if (searchQuery) { const q = searchQuery.toLowerCase(); result = result.filter(m => m.title.toLowerCase().includes(q) || m.category.includes(q)); }
   // Probability range filter
   result = result.filter(m => m.probability >= minProb && m.probability <= maxProb);
+  // Hide ended markets
+  if (hideEnded) result = result.filter(m => !m.endDate || new Date(m.endDate) > Date.now());
   renderMarkets(result);
   // Update stats pill with range info
   const totalPill = document.getElementById('totalCount');
@@ -236,6 +239,15 @@ document.addEventListener('keydown', e => {
     searchClear.style.display = 'none'; applyFilters();
   }
 });
+
+// Hide Ended toggle
+const hideEndedChk = document.getElementById('hideEndedChk');
+if (hideEndedChk) {
+  hideEndedChk.addEventListener('change', () => {
+    hideEnded = hideEndedChk.checked;
+    applyFilters();
+  });
+}
 
 // ─── HOT BETS ─────────────────────────────────────────────────────────────────
 async function loadHotBets() {

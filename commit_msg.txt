@@ -1,1 +1,1 @@
-Add probability range slider and filter unforecasted markets
+Fix Oops slug issue, add hide ended toggle

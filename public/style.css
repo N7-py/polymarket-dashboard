@@ -425,6 +425,86 @@ body::before {
   letter-spacing: 0.03em;
 }
 
+/* ─── Tabs bar (tabs + hide-ended toggle on same row) ───────────────────────── */
+.tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* ─── Hide-Ended toggle switch ───────────────────────────────────────────────── */
+.hide-ended-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.03);
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.hide-ended-toggle:hover {
+  border-color: rgba(108, 99, 255, 0.4);
+  background: rgba(108, 99, 255, 0.06);
+}
+
+/* Hide native checkbox */
+.hide-ended-toggle input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Track */
+.toggle-track {
+  position: relative;
+  display: inline-block;
+  width: 32px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 100px;
+  transition: background 0.2s;
+  flex-shrink: 0;
+}
+
+/* Thumb */
+.toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s, background 0.2s;
+}
+
+/* Checked state */
+.hide-ended-toggle input:checked~.toggle-track {
+  background: linear-gradient(135deg, #6c63ff, #00d4aa);
+}
+
+.hide-ended-toggle input:checked~.toggle-track .toggle-thumb {
+  transform: translateX(14px);
+}
+
+.toggle-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.hide-ended-toggle:hover .toggle-label {
+  color: var(--text);
+}
 
 /* ─── Main ───────────────────────────────────────────────────────────────────── */
 .main {
