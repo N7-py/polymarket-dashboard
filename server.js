@@ -40,13 +40,21 @@ function detectCategory(text) {
 // ─── Fetch & process events (uses /events endpoint for valid URLs) ─────────────
 async function fetchMarkets() {
   try {
-    const res = await axios.get('https://gamma-api.polymarket.com/events', {
-      params: { active: true, closed: false, limit: 1000, order: 'volume24hr', ascending: false },
-      timeout: 20000, headers: { Accept: 'application/json' }
-    });
+    let allEvents = [];
+    const maxPages = 4; // Fetch up to 2000 events
 
-    const raw = res.data;
-    const events = Array.isArray(raw) ? raw : (raw.events || raw.data || []);
+    for (let page = 0; page < maxPages; page++) {
+      const res = await axios.get('https://gamma-api.polymarket.com/events', {
+        params: { active: true, closed: false, limit: 500, offset: page * 500, order: 'volume24hr', ascending: false },
+        timeout: 20000, headers: { Accept: 'application/json' }
+      });
+      const raw = res.data;
+      const eventsPage = Array.isArray(raw) ? raw : (raw.events || raw.data || []);
+      if (eventsPage.length === 0) break;
+      allEvents = allEvents.concat(eventsPage);
+    }
+
+    const events = allEvents;
     const filtered = [];
 
     for (const ev of events) {
@@ -86,7 +94,7 @@ async function fetchMarkets() {
         }
       }
 
-      if (maxProb < 0.50) continue;
+      if (maxProb < 0.01) continue; // Keep almost all active markets for cross-referencing
 
       // Aggregate stats across all sub-markets of this event
       const volume = parseFloat(ev.volume) || markets.reduce((s, m) => s + (parseFloat(m.volume) || 0), 0);
@@ -359,7 +367,7 @@ async function fetchStreakPositions(address, timeline = 'all') {
 
 app.get('/api/smartpicks', async (req, res) => {
   try {
-    const minStreak = parseInt(req.query.minStreak) || 3;
+    const minStreak = parseInt(req.query.minStreak) || 10;
     const timeline = req.query.timeline || 'all';
     const result = await fetchSmartPicks(minStreak, timeline);
     res.json({ success: true, generated: new Date().toISOString(), ...result });
@@ -491,19 +499,22 @@ async function refreshMarketsCache() {
   console.log('🔄 Refreshing markets cache...');
   marketsCache = await fetchMarkets();
   lastFetch = Date.now();
-  console.log(`✅ Cached ${marketsCache.length} markets with ≥50% probability`);
+  console.log(`✅ Cached ${marketsCache.length} active markets`);
 }
 
 // ─── API Routes ───────────────────────────────────────────────────────────────
 app.get('/api/markets', async (req, res) => {
   try {
     await refreshMarketsCache();
-    let result = [...marketsCache];
+    // Only return high-confidence markets (≥ 50%) for the main scanner grid
+    let result = marketsCache.filter(m => m.probability >= 50);
+
     const cat = (req.query.category || '').toLowerCase();
     if (cat && cat !== 'all') result = result.filter(m => m.category === cat);
     const search = (req.query.search || '').toLowerCase().trim();
     if (search) result = result.filter(m => m.title.toLowerCase().includes(search) || m.category.includes(search));
-    res.json({ success: true, count: result.length, total: marketsCache.length, lastUpdated: new Date(lastFetch).toISOString(), markets: result });
+
+    res.json({ success: true, count: result.length, total: result.length, lastUpdated: new Date(lastFetch).toISOString(), markets: result });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
