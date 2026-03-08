@@ -41,7 +41,7 @@ function detectCategory(text) {
 async function fetchMarkets() {
   try {
     const res = await axios.get('https://gamma-api.polymarket.com/events', {
-      params: { active: true, closed: false, limit: 300, order: 'volume24hr', ascending: false },
+      params: { active: true, closed: false, limit: 1000, order: 'volume24hr', ascending: false },
       timeout: 20000, headers: { Accept: 'application/json' }
     });
 
@@ -337,8 +337,11 @@ async function fetchStreakPositions(address, timeline = 'all') {
 
     positions = positions.filter(p => {
       const cached = marketsCache.find(m => m.title === p.market);
-      // If we don't know the end date, we keep it as a fallback
-      if (!cached || !cached.endDate) return true;
+      // Strictly require the market to be in our active cache
+      if (!cached) return false;
+
+      // If we don't have an endDate but it IS active, keep it if timeline is 'all'
+      if (!cached.endDate) return timeline === 'all';
 
       const ends = new Date(cached.endDate).getTime();
       const timeRemaining = ends - now;
