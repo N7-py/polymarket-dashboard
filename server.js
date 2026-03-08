@@ -326,21 +326,29 @@ async function fetchStreakPositions(address, timeline = 'all') {
         (p.slug ? `https://polymarket.com/event/${p.slug}` : null),
     }));
 
-    if (timeline !== 'all') {
-      await refreshMarketsCache();
-      const now = Date.now();
-      let maxDeltaMs = Infinity;
-      if (timeline === '1d') maxDeltaMs = 86400000;
-      else if (timeline === '1w') maxDeltaMs = 604800000;
-      else if (timeline === '1m') maxDeltaMs = 2592000000;
+    await refreshMarketsCache();
+    const now = Date.now();
 
-      positions = positions.filter(p => {
-        const cached = marketsCache.find(m => m.title === p.market);
-        if (!cached || !cached.endDate) return true; // keep if unknown
-        const ends = new Date(cached.endDate).getTime();
-        return (ends - now) > 0 && (ends - now) <= maxDeltaMs;
-      });
-    }
+    // Determine max delta based on timeline filter
+    let maxDeltaMs = Infinity;
+    if (timeline === '1d') maxDeltaMs = 86400000;
+    else if (timeline === '1w') maxDeltaMs = 604800000;
+    else if (timeline === '1m') maxDeltaMs = 2592000000;
+
+    positions = positions.filter(p => {
+      const cached = marketsCache.find(m => m.title === p.market);
+      // If we don't know the end date, we keep it as a fallback
+      if (!cached || !cached.endDate) return true;
+
+      const ends = new Date(cached.endDate).getTime();
+      const timeRemaining = ends - now;
+
+      // Filter 1: Must NOT be expired/ended (timeRemaining must be > 0)
+      if (timeRemaining <= 0) return false;
+
+      // Filter 2: Must be within the selected timeline
+      return timeRemaining <= maxDeltaMs;
+    });
 
     return positions;
   } catch { return []; }
@@ -348,7 +356,7 @@ async function fetchStreakPositions(address, timeline = 'all') {
 
 app.get('/api/smartpicks', async (req, res) => {
   try {
-    const minStreak = parseInt(req.query.minStreak) || 10;
+    const minStreak = parseInt(req.query.minStreak) || 3;
     const timeline = req.query.timeline || 'all';
     const result = await fetchSmartPicks(minStreak, timeline);
     res.json({ success: true, generated: new Date().toISOString(), ...result });

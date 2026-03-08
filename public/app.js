@@ -429,7 +429,7 @@ async function loadSmartPicks() {
   document.getElementById('smartPicksGrid').innerHTML = `<div class="skeleton-card" style="height:140px"></div>`.repeat(2);
 
   const streakSlider = document.getElementById('smartMinStreak');
-  const topN = streakSlider ? parseInt(streakSlider.value) : 10;
+  const topN = streakSlider ? parseInt(streakSlider.value) : 3;
 
   const timelineSelect = document.getElementById('smartTimeline');
   const timeline = timelineSelect ? timelineSelect.value : 'all';
@@ -452,7 +452,7 @@ function renderSmartPicks(data) {
   const strip = document.getElementById('smartStatStrip');
   const grid = document.getElementById('smartPicksGrid');
   const streakSlider = document.getElementById('smartMinStreak');
-  const topN = streakSlider ? parseInt(streakSlider.value) : 10;
+  const topN = streakSlider ? parseInt(streakSlider.value) : 3;
 
   const traders = data.topTraders || [];
   let picks = data.picks || [];
