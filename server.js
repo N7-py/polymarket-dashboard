@@ -222,6 +222,9 @@ function shortenAddress(addr) {
  */
 async function fetchSmartPicks(topTradersCount = 10, timeline = 'all') {
   try {
+    // Refresh Cache ONCE before getting all streak positions
+    await refreshMarketsCache();
+
     // Step 1: Get top traders by PNL
     // Limit to 25 just to be safe, but we'll slice by topTradersCount
     const res = await axios.get('https://data-api.polymarket.com/v1/leaderboard', {
@@ -334,7 +337,6 @@ async function fetchStreakPositions(address, timeline = 'all') {
         (p.slug ? `https://polymarket.com/event/${p.slug}` : null),
     }));
 
-    await refreshMarketsCache();
     const now = Date.now();
 
     // Determine max delta based on timeline filter
