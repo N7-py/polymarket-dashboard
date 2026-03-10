@@ -256,7 +256,8 @@ async function fetchTraderWinRate(address) {
     return rate;
   } catch { return 0; }
 }
-async function fetchSmartPicks(topTradersCount = 10, timeline = 'all') {
+
+async function fetchSmartPicks(topTradersCount = 10, minWinRate = 75, timeline = 'all') {
   try {
     // Refresh Cache ONCE before getting all streak positions
     await refreshMarketsCache();
@@ -307,17 +308,17 @@ async function fetchSmartPicks(topTradersCount = 10, timeline = 'all') {
     const qualifiedTraders = candidates.filter(u => {
       const rate = winRatesMap.get(u.address) || 0;
       u.winRate = rate;
-      const qualifies = rate >= 75;
+      const qualifies = rate >= minWinRate;
       console.log(`  ${u.name}: ${rate}% → ${qualifies ? '✅' : '❌'}`);
       return qualifies;
     });
 
-    console.log(`✅ ${qualifiedTraders.length} traders qualify (≥75% win rate)`);
+    console.log(`✅ ${qualifiedTraders.length} traders qualify (≥${minWinRate}% win rate)`);
 
     // Take the top N qualifying traders as requested by the slider
     const topTraders = qualifiedTraders.slice(0, Math.min(topTradersCount, 25));
 
-    if (topTraders.length === 0) return { picks: [], topTraders: [], message: 'No traders found with ≥75% win rate this week.' };
+    if (topTraders.length === 0) return { picks: [], topTraders: [], message: `No traders found with ≥${minWinRate}% win rate this week.` };
 
     // Step 3: Fetch positions for these top traders in parallel
     const positionResults = await Promise.allSettled(
@@ -444,10 +445,11 @@ async function fetchStreakPositions(address, timeline = 'all') {
 
 app.get('/api/smartpicks', async (req, res) => {
   try {
-    const minStreak = parseInt(req.query.minStreak) || 10;
+    const minWinRate = parseInt(req.query.minWinRate) || 75;
     const timeline = req.query.timeline || 'all';
-    const result = await fetchSmartPicks(minStreak, timeline);
-    res.json({ success: true, generated: new Date().toISOString(), ...result });
+    // We hardcode top traders count to 20 for the pool size (can be made dynamic later)
+    const { picks, topTraders, message } = await fetchSmartPicks(20, minWinRate, timeline);
+    res.json({ picks, topTraders, message });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

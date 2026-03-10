@@ -428,14 +428,14 @@ async function loadSmartPicks() {
   smartPicksLoading = true;
   document.getElementById('smartPicksGrid').innerHTML = `<div class="skeleton-card" style="height:140px"></div>`.repeat(2);
 
-  const streakSlider = document.getElementById('smartMinStreak');
-  const topN = streakSlider ? parseInt(streakSlider.value) : 10;
+  const winRateSlider = document.getElementById('smartMinWinRate');
+  const minWinRate = winRateSlider ? parseInt(winRateSlider.value) : 75;
 
   const timelineSelect = document.getElementById('smartTimeline');
   const timeline = timelineSelect ? timelineSelect.value : 'all';
 
   try {
-    const res = await fetch(`${API_BASE}/api/smartpicks?minStreak=${topN}&timeline=${timeline}`);
+    const res = await fetch(`${API_BASE}/api/smartpicks?minWinRate=${minWinRate}&timeline=${timeline}`);
     const data = await res.json();
     smartPicksLoaded = true;
     window.smartPicksData = data;
@@ -451,22 +451,24 @@ async function loadSmartPicks() {
 function renderSmartPicks(data) {
   const strip = document.getElementById('smartStatStrip');
   const grid = document.getElementById('smartPicksGrid');
-  const streakSlider = document.getElementById('smartMinStreak');
-  const topN = streakSlider ? parseInt(streakSlider.value) : 10;
+  const winRateSlider = document.getElementById('smartMinWinRate');
+  const minRate = winRateSlider ? parseInt(winRateSlider.value) : 75;
 
   const traders = data.topTraders || [];
   let picks = data.picks || [];
 
+  const rateColor = minRate >= 75 ? '#00d4aa' : minRate >= 60 ? '#f1c40f' : '#3498db';
+
   if (traders.length === 0) {
-    const msg = data.message || 'No traders found with ≥75% win rate this week.';
+    const msg = data.message || `No traders found with ≥${minRate}% win rate this week.`;
     strip.innerHTML = `<span style="color:var(--text-muted)">${msg}</span>`;
     grid.innerHTML = `<div style="text-align:center;color:var(--text-dim);grid-column:1/-1;padding:20px">Try adjusting the slider or check back later.</div>`;
     return;
   }
 
   strip.innerHTML = `
-    <span>Found <b>${traders.length}</b> traders with <b style="color:#00d4aa">&ge;75% win rate</b> this week.</span>
-    <span style="margin-left:8px;padding:2px 8px;background:rgba(0,212,170,0.12);color:#00d4aa;border:1px solid rgba(0,212,170,0.3);border-radius:4px;font-size:0.75rem;font-weight:700;">🏆 Top ${traders.length} Qualified</span>
+    <span>Found <b>${traders.length}</b> traders with <b style="color:${rateColor}">&ge;${minRate}% win rate</b> this week.</span>
+    <span style="margin-left:8px;padding:2px 8px;background:rgba(255,255,255,0.05);color:${rateColor};border:1px solid ${rateColor}55;border-radius:4px;font-size:0.75rem;font-weight:700;">🏆 Top ${traders.length} Qualified</span>
     <span style="margin-left:8px;color:var(--text-dim)">— Showing <b style="color:var(--accent)">${picks.length}</b> open bets.</span>
   `;
 

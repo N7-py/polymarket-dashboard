@@ -235,17 +235,17 @@
             </div>
 
             <div style="display:flex;align-items:center;">
-              <!-- Min Streak Filter -->
+              <!-- Win Rate Filter -->
               <div class="smart-filter" onclick="event.stopPropagation()">
-                <label for="smartMinStreak"
-                  style="font-size:0.75rem;font-weight:700;color:var(--text-dim);white-space:nowrap;">Win Streak
-                  ≥</label>
-                <input type="range" id="smartMinStreak" class="range-input" style="width:80px;margin:0 8px" min="3"
-                  max="50" value="10" step="1"
-                  oninput="document.getElementById('smartStreakDisplay').textContent=this.value"
+                <label for="smartMinWinRate"
+                  style="font-size:0.75rem;font-weight:700;color:var(--text-dim);white-space:nowrap;">Win Rate
+                  &ge;</label>
+                <input type="range" id="smartMinWinRate" class="range-input" style="width:80px;margin:0 8px" min="50"
+                  max="100" value="75" step="1"
+                  oninput="document.getElementById('smartWinRateDisplay').textContent=this.value+'%'"
                   onchange="loadSmartPicks()" />
-                <span id="smartStreakDisplay"
-                  style="font-weight:800;color:var(--accent);min-width:20px;margin-right:16px;">10</span>
+                <span id="smartWinRateDisplay"
+                  style="font-weight:800;color:var(--accent);min-width:35px;margin-right:16px;display:inline-block">75%</span>
               </div>
 
               <!-- Timeline Filter -->
