@@ -226,18 +226,34 @@ function shortenAddress(addr) {
  * 7. Sort by endorser count, then by collective avg position size
  */
 
+// Cache Trader Win Rates for 10 minutes to prevent API timeouts on re-loads
+const winRateCache = new Map(); // address → { rate, exp }
+
 // Fetch win rate for a trader by counting resolved bets where cashPnl > 0
 async function fetchTraderWinRate(address) {
   if (!address) return 0;
+
+  // Check cache first
+  const cached = winRateCache.get(address);
+  if (cached && cached.exp > Date.now()) {
+    return cached.rate;
+  }
+
   try {
     const res = await axios.get('https://data-api.polymarket.com/positions', {
-      params: { user: address, sizeThreshold: 0, limit: 200, redeemable: true },
-      timeout: 8000, headers: { Accept: 'application/json' }
+      params: { user: address, sizeThreshold: 0, limit: 100, redeemable: true },
+      timeout: 6000, headers: { Accept: 'application/json' }
     });
     const rows = Array.isArray(res.data) ? res.data : (res.data.data || []);
-    if (rows.length === 0) return 0;
-    const won = rows.filter(p => parseFloat(p.cashPnl || 0) > 0).length;
-    return Math.round((won / rows.length) * 100); // 0-100
+    let rate = 0;
+    if (rows.length > 0) {
+      const won = rows.filter(p => parseFloat(p.cashPnl || 0) > 0).length;
+      rate = Math.round((won / rows.length) * 100);
+    }
+
+    // Cache for 10 minutes
+    winRateCache.set(address, { rate, exp: Date.now() + 600000 });
+    return rate;
   } catch { return 0; }
 }
 async function fetchSmartPicks(topTradersCount = 10, timeline = 'all') {
@@ -248,7 +264,7 @@ async function fetchSmartPicks(topTradersCount = 10, timeline = 'all') {
     // Step 1: Get top traders by PNL
     // Limit to 25 just to be safe, but we'll slice by topTradersCount
     const res = await axios.get('https://data-api.polymarket.com/v1/leaderboard', {
-      params: { category: 'OVERALL', timePeriod: 'WEEK', orderBy: 'PNL', limit: 50 },
+      params: { category: 'OVERALL', timePeriod: 'WEEK', orderBy: 'PNL', limit: 20 },
       timeout: 15000, headers: { Accept: 'application/json' }
     });
     const data = res.data;
@@ -275,21 +291,28 @@ async function fetchSmartPicks(topTradersCount = 10, timeline = 'all') {
     if (candidates.length === 0) return { picks: [], topTraders: [] };
 
     // Step 2b: Filter by win rate >= 75%
-    // Fetch resolved positions for each candidate in parallel to calculate win rate
-    console.log(`🔍 Calculating win rates for ${candidates.length} candidates...`);
-    const winRates = await Promise.allSettled(
-      candidates.map(u => fetchTraderWinRate(u.address))
-    );
+    // Batch win rate checks (5 at a time) to avoid hammering the API and timing out
+    console.log(`🔍 Checking win rates for ${candidates.length} candidates (batched)...`);
+    const BATCH_SIZE = 5;
+    const winRatesMap = new Map();
+    for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
+      const batch = candidates.slice(i, i + BATCH_SIZE);
+      const results = await Promise.allSettled(batch.map(u => fetchTraderWinRate(u.address)));
+      results.forEach((r, j) => {
+        winRatesMap.set(batch[j].address, r.status === 'fulfilled' ? r.value : 0);
+      });
+      if (i + BATCH_SIZE < candidates.length) await new Promise(r => setTimeout(r, 150));
+    }
 
-    const qualifiedTraders = candidates.filter((u, idx) => {
-      const rate = winRates[idx].status === 'fulfilled' ? winRates[idx].value : 0;
+    const qualifiedTraders = candidates.filter(u => {
+      const rate = winRatesMap.get(u.address) || 0;
       u.winRate = rate;
       const qualifies = rate >= 75;
-      console.log(`  ${u.name}: win rate ${rate}% → ${qualifies ? '✅ QUALIFIED' : '❌ skipped'}`);
+      console.log(`  ${u.name}: ${rate}% → ${qualifies ? '✅' : '❌'}`);
       return qualifies;
     });
 
-    console.log(`✅ ${qualifiedTraders.length} traders qualify (win rate ≥ 75%)`);
+    console.log(`✅ ${qualifiedTraders.length} traders qualify (≥75% win rate)`);
 
     // Take the top N qualifying traders as requested by the slider
     const topTraders = qualifiedTraders.slice(0, Math.min(topTradersCount, 25));
