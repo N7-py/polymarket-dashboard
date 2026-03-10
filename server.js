@@ -96,6 +96,10 @@ async function fetchMarkets() {
 
       if (maxProb < 0.01) continue; // Keep almost all active markets for cross-referencing
 
+      // Skip events that have already ended
+      const endDate = ev.endDate || ev.endDateIso || null;
+      if (endDate && new Date(endDate).getTime() <= Date.now()) continue;
+
       // Aggregate stats across all sub-markets of this event
       const volume = parseFloat(ev.volume) || markets.reduce((s, m) => s + (parseFloat(m.volume) || 0), 0);
       const volume24h = parseFloat(ev.volume24hr) || markets.reduce((s, m) => s + (parseFloat(m.volume24hr) || 0), 0);
@@ -111,7 +115,7 @@ async function fetchMarkets() {
         volume,
         volume24h,
         liquidity,
-        endDate: ev.endDate || ev.endDateIso || null,
+        endDate,
         url: `https://polymarket.com/event/${slug}`,
         totalBets: parseInt(ev.uniqueTraderCount) || 0,
       });
@@ -278,6 +282,8 @@ async function fetchSmartPicks(topTradersCount = 10, timeline = 'all') {
             title: pos.market,
             marketUrl: pos.marketUrl || null,
             outcome: pos.outcome,
+            side: pos.side || 'Buy',
+            endDate: pos.endDate || null,
             count: 0,
             traders: [],
             totalSize: 0,
@@ -303,6 +309,8 @@ async function fetchSmartPicks(topTradersCount = 10, timeline = 'all') {
         title: m.title,
         url: m.marketUrl || `https://polymarket.com/event/${m.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60)}`,
         outcome: m.outcome,
+        side: m.side || 'Buy',
+        endDate: m.endDate || null,
         endorserCount: m.count,
         endorsers: m.traders.slice(0, 5), // top 5 endorsing traders to show
         totalExposure: m.totalSize,
@@ -328,14 +336,20 @@ async function fetchStreakPositions(address, timeline = 'all') {
 
     // We must fetch the actual active markets to cross-reference End Dates,
     // because the 'positions' API does NOT return market end dates itself.
-    let positions = rows.map(p => ({
-      market: p.title || p.market || p.question || '',
-      outcome: p.outcome || p.side || 'Yes',
-      size: parseFloat(p.size) || parseFloat(p.currentValue) || 0,
-      curPrice: parseFloat(p.curPrice) || parseFloat(p.currentPrice) || 0,
-      marketUrl: p.eventSlug ? `https://polymarket.com/event/${p.eventSlug}` :
-        (p.slug ? `https://polymarket.com/event/${p.slug}` : null),
-    }));
+    let positions = rows.map(p => {
+      // Determine bet side — Polymarket positions are always "bought" shares
+      // The outcome tells us what was bought: Yes/No or a named outcome
+      const outcome = p.outcome || p.side || 'Yes';
+      return {
+        market: p.title || p.market || p.question || '',
+        outcome,
+        side: 'Buy',  // Polymarket positions are always Buy (long) positions
+        size: parseFloat(p.size) || parseFloat(p.currentValue) || 0,
+        curPrice: parseFloat(p.curPrice) || parseFloat(p.currentPrice) || 0,
+        marketUrl: p.eventSlug ? `https://polymarket.com/event/${p.eventSlug}` :
+          (p.slug ? `https://polymarket.com/event/${p.slug}` : null),
+      };
+    });
 
     const now = Date.now();
 
@@ -347,20 +361,23 @@ async function fetchStreakPositions(address, timeline = 'all') {
 
     positions = positions.filter(p => {
       const cached = marketsCache.find(m => m.title === p.market);
-      // Strictly require the market to be in our active cache
+      // Strictly require the market to be in our active cache (which itself only has live/future events)
       if (!cached) return false;
 
-      // If we don't have an endDate but it IS active, keep it if timeline is 'all'
-      if (!cached.endDate) return timeline === 'all';
+      // Always enrich position with endDate from our verified market cache
+      p.endDate = cached.endDate || null;
 
-      const ends = new Date(cached.endDate).getTime();
-      const timeRemaining = ends - now;
+      // ALWAYS filter out expired markets — even on 'all' timeline
+      if (cached.endDate) {
+        const ends = new Date(cached.endDate).getTime();
+        const timeRemaining = ends - now;
+        if (timeRemaining <= 0) return false;
 
-      // Filter 1: Must NOT be expired/ended (timeRemaining must be > 0)
-      if (timeRemaining <= 0) return false;
+        // Apply timeline window filter if not 'all'
+        if (timeline !== 'all' && timeRemaining > maxDeltaMs) return false;
+      }
 
-      // Filter 2: Must be within the selected timeline
-      return timeRemaining <= maxDeltaMs;
+      return true;
     });
 
     return positions;
@@ -676,7 +693,10 @@ function scoreFavorites(markets) {
   });
 
   // Sort by composite safety score descending, take top 10
+  // Final guard: discard any market whose endDate is already in the past
+  const nowMs = Date.now();
   return scored
+    .filter(m => !m.endDate || new Date(m.endDate).getTime() > nowMs)
     .sort((a, b) => b.safetyScore - a.safetyScore)
     .slice(0, 10)
     .map((m, idx) => ({ ...m, favoriteRank: idx + 1 }));

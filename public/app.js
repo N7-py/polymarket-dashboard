@@ -442,7 +442,7 @@ async function loadSmartPicks() {
     renderSmartPicks(data);
   } catch (err) {
     console.error('Smart picks error:', err);
-    document.getElementById('smartPicksGrid').innerHTML = `<div style="text-align:center;color:var(--text-muted);padding:20px">⚠️ Failed to load Leaderboard Picks.</div>`;
+    document.getElementById('smartPicksGrid').innerHTML = `<div style="text-align:center;color:#ff6b6b;padding:20px">⚠️ Failed to load Leaderboard Picks. Error: ${err.message || err}</div>`;
   } finally {
     smartPicksLoading = false;
   }
@@ -471,6 +471,14 @@ function renderSmartPicks(data) {
   }
 
   grid.innerHTML = picks.map(p => {
+    const outcomeUpper = (p.outcome || 'Yes').trim().toUpperCase();
+    const isYes = outcomeUpper === 'YES';
+    const isNo = outcomeUpper === 'NO';
+    const buyColor = isYes ? '#00d4aa' : isNo ? '#e74c3c' : 'var(--accent)';
+    const buyBg = isYes ? 'rgba(0,212,170,0.12)' : isNo ? 'rgba(231,76,60,0.12)' : 'rgba(108,99,255,0.12)';
+    const buyBorder = isYes ? 'rgba(0,212,170,0.4)' : isNo ? 'rgba(231,76,60,0.4)' : 'rgba(108,99,255,0.4)';
+    const buyIcon = isYes ? '🟢' : isNo ? '🔴' : '🎯';
+    const endLabel = p.endDate ? formatDate(p.endDate) : 'date unknown';
     return `
     <div class="smart-card" onclick="openMarket('${escHtml(p.url)}')" role="button" tabindex="0">
       <div class="smart-card-top">
@@ -479,8 +487,11 @@ function renderSmartPicks(data) {
       </div>
       <div class="smart-card-mid">
         <div class="smart-outcome">
-          <span style="font-size:0.7rem;color:var(--text-muted);display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:0.05em">Smart Money Bet</span>
-          <span style="font-size:1.1rem;font-weight:900;color:var(--accent)">${escHtml(p.outcome)}</span>
+          <span style="font-size:0.7rem;color:var(--text-muted);display:block;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em">Top Bettors Action</span>
+          <div style="display:inline-flex;align-items:center;gap:8px;background:${buyBg};border:1px solid ${buyBorder};border-radius:8px;padding:6px 14px;">
+            <span style="font-size:1rem">${buyIcon}</span>
+            <span style="font-size:1.1rem;font-weight:900;color:${buyColor}">BUY ${escHtml(p.outcome)}</span>
+          </div>
         </div>
         <div class="smart-endorsers">
           <span class="smart-endorser-count">👥 ${p.endorserCount} top traders</span>
@@ -492,6 +503,10 @@ function renderSmartPicks(data) {
       <div class="smart-card-bot">
         <span>💰 Total exposure: ${formatMoney(p.totalExposure)}</span>
         <span>Avg Prob: ${p.avgProbability ? p.avgProbability + '%' : '—'}</span>
+      </div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.06);font-size:0.8rem;color:var(--text-dim);display:flex;align-items:center;gap:6px;">
+        <span>⏱ ${endLabel}</span>
+        <span style="margin-left:auto;background:rgba(0,212,170,0.12);color:#00d4aa;border:1px solid rgba(0,212,170,0.3);border-radius:4px;padding:2px 8px;font-size:0.7rem;font-weight:700;">LIVE</span>
       </div>
     </div>`;
   }).join('');
@@ -529,8 +544,8 @@ function renderMyPicks(picks) {
     const outcome = (p.winningOutcome || 'Yes').trim();
     const isYes = outcome.toLowerCase() === 'yes';
     const isNo = outcome.toLowerCase() === 'no';
-    const betLabel = isYes ? 'BET YES' : isNo ? 'BET NO' : `BET: ${outcome}`;
-    const betIcon = isYes ? '✅' : isNo ? '❌' : '🎯';
+    const betLabel = isYes ? 'BUY YES' : isNo ? 'BUY NO' : `BUY ${outcome}`;
+    const betIcon = isYes ? '🟢' : isNo ? '🔴' : '🎯';
     const betBg = isYes ? 'rgba(0,212,170,0.12)' : isNo ? 'rgba(231,76,60,0.12)' : 'rgba(108,99,255,0.12)';
     const betBorder = isYes ? 'rgba(0,212,170,0.4)' : isNo ? 'rgba(231,76,60,0.4)' : 'rgba(108,99,255,0.4)';
     const betColor = isYes ? '#00d4aa' : isNo ? '#e74c3c' : '#6c63ff';
@@ -580,6 +595,7 @@ function renderMyPicks(picks) {
       </div>
       <div class="pick-footer">
         <span class="end-date">⏱ ${formatDate(p.endDate)}</span>
+        <span style="background:rgba(0,212,170,0.12);color:#00d4aa;border:1px solid rgba(0,212,170,0.3);border-radius:4px;padding:2px 8px;font-size:0.7rem;font-weight:700;">LIVE</span>
         <span class="open-link">Bet on Polymarket ↗</span>
       </div>
     </div>`;
