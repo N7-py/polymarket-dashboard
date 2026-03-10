@@ -458,15 +458,20 @@ function renderSmartPicks(data) {
   let picks = data.picks || [];
 
   if (traders.length === 0) {
-    strip.innerHTML = `No top traders found right now.`;
-    grid.innerHTML = '';
+    const msg = data.message || 'No traders found with ≥75% win rate this week.';
+    strip.innerHTML = `<span style="color:var(--text-muted)">${msg}</span>`;
+    grid.innerHTML = `<div style="text-align:center;color:var(--text-dim);grid-column:1/-1;padding:20px">Try adjusting the slider or check back later.</div>`;
     return;
   }
 
-  strip.innerHTML = `Analyzing the top <b>${traders.length}</b> most profitable traders globally this week. Found <b>${picks.length}</b> shared convictions with 2+ backers.`;
+  strip.innerHTML = `
+    <span>Found <b>${traders.length}</b> traders with <b style="color:#00d4aa">≥75% win rate</b> this week.</span>
+    <span style="margin-left:8px;padding:2px 8px;background:rgba(0,212,170,0.12);color:#00d4aa;border:1px solid rgba(0,212,170,0.3);border-radius:4px;font-size:0.75rem;font-weight:700;">🏆 Top ${traders.length} Qualified</span>
+    <span style="margin-left:8px;color:var(--text-dim)">— Found <b style="color:var(--accent)">${picks.length}</b> shared convictions with 2+ backers.</span>
+  `;
 
   if (picks.length === 0) {
-    grid.innerHTML = `<div style="text-align:center;color:var(--text-dim);grid-column:1/-1;padding:20px">No shared markets found. Try expanding the slider to analyze more top traders.</div>`;
+    grid.innerHTML = `<div style="text-align:center;color:var(--text-dim);grid-column:1/-1;padding:20px">No shared open markets found among top bettors. Try expanding the slider.</div>`;
     return;
   }
 

@@ -216,14 +216,30 @@ function shortenAddress(addr) {
 // ─── Smart Money / Leaderboard Picks ──────────────────────────────────────────
 /*
  * Algorithm:
- * 1. Fetch top 20 WEEKLY leaderboard traders (best recent performance)
- * 2. Filter to "hot streak" traders: percentPositive >= 60% AND tradesCount >= 10
- *    (this is the best proxy for a 10+ winning streak available from the API)
- * 3. Fetch their open positions in parallel (rate-limited, max 15 traders)
- * 4. Group positions by market title — count how many streak traders hold each market
- * 5. Markets held by 2+ streak traders = "Smart Money Pick"
- * 6. Sort by endorser count, then by collective avg position size
+ * 1. Fetch top 50 traders WEEKLY by PNL
+ * 2. Calculate each trader's win rate: resolved bets won / total resolved bets
+ *    Win rate >= 75% → qualifies as a "top bettor"
+ * 3. From qualifying traders, take the top N (controlled by the slider)
+ * 4. Fetch their open positions in parallel
+ * 5. Group positions by market — count how many top bettors share each market
+ * 6. Markets held by 2+ top bettors = "Leaderboard Pick"
+ * 7. Sort by endorser count, then by collective avg position size
  */
+
+// Fetch win rate for a trader by counting resolved bets where cashPnl > 0
+async function fetchTraderWinRate(address) {
+  if (!address) return 0;
+  try {
+    const res = await axios.get('https://data-api.polymarket.com/positions', {
+      params: { user: address, sizeThreshold: 0, limit: 200, redeemable: true },
+      timeout: 8000, headers: { Accept: 'application/json' }
+    });
+    const rows = Array.isArray(res.data) ? res.data : (res.data.data || []);
+    if (rows.length === 0) return 0;
+    const won = rows.filter(p => parseFloat(p.cashPnl || 0) > 0).length;
+    return Math.round((won / rows.length) * 100); // 0-100
+  } catch { return 0; }
+}
 async function fetchSmartPicks(topTradersCount = 10, timeline = 'all') {
   try {
     // Refresh Cache ONCE before getting all streak positions
@@ -232,22 +248,21 @@ async function fetchSmartPicks(topTradersCount = 10, timeline = 'all') {
     // Step 1: Get top traders by PNL
     // Limit to 25 just to be safe, but we'll slice by topTradersCount
     const res = await axios.get('https://data-api.polymarket.com/v1/leaderboard', {
-      params: { category: 'OVERALL', timePeriod: 'WEEK', orderBy: 'PNL', limit: 25 },
+      params: { category: 'OVERALL', timePeriod: 'WEEK', orderBy: 'PNL', limit: 50 },
       timeout: 15000, headers: { Accept: 'application/json' }
     });
     const data = res.data;
     const rankings = Array.isArray(data) ? data : (data.data || data.leaderboard || data.rankings || []);
 
-    if (rankings.length === 0) return { picks: [], streakTraders: [] };
+    if (rankings.length === 0) return { picks: [], topTraders: [] };
 
-    // Step 2: Format top traders (win rate/trades count no longer exist on this API)
-    const topTraders = rankings
+    // Step 2: Format all candidates
+    const candidates = rankings
       .map(u => {
         const addr = u.address || u.proxyWallet || '';
         const pseudo = u.pseudonym && u.pseudonym.trim() ? u.pseudonym : null;
         let dispName = u.name && u.name.trim() !== addr ? u.name : null;
-        if (!dispName) dispName = pseudo || shortenAddress(addr);
-
+        if (!dispName) dispName = pseudo || u.userName || u.xUsername || shortenAddress(addr);
         return {
           address: addr,
           name: dispName,
@@ -255,10 +270,31 @@ async function fetchSmartPicks(topTradersCount = 10, timeline = 'all') {
           profileUrl: addr ? `https://polymarket.com/profile/${addr}` : null,
         };
       })
-      .filter(u => u.address)             // must have a real address
-      .slice(0, Math.min(topTradersCount, 25)); // cap at selected amount
+      .filter(u => u.address);
 
-    if (topTraders.length === 0) return { picks: [], streakTraders: [] };
+    if (candidates.length === 0) return { picks: [], topTraders: [] };
+
+    // Step 2b: Filter by win rate >= 75%
+    // Fetch resolved positions for each candidate in parallel to calculate win rate
+    console.log(`🔍 Calculating win rates for ${candidates.length} candidates...`);
+    const winRates = await Promise.allSettled(
+      candidates.map(u => fetchTraderWinRate(u.address))
+    );
+
+    const qualifiedTraders = candidates.filter((u, idx) => {
+      const rate = winRates[idx].status === 'fulfilled' ? winRates[idx].value : 0;
+      u.winRate = rate;
+      const qualifies = rate >= 75;
+      console.log(`  ${u.name}: win rate ${rate}% → ${qualifies ? '✅ QUALIFIED' : '❌ skipped'}`);
+      return qualifies;
+    });
+
+    console.log(`✅ ${qualifiedTraders.length} traders qualify (win rate ≥ 75%)`);
+
+    // Take the top N qualifying traders as requested by the slider
+    const topTraders = qualifiedTraders.slice(0, Math.min(topTradersCount, 25));
+
+    if (topTraders.length === 0) return { picks: [], topTraders: [], message: 'No traders found with ≥75% win rate this week.' };
 
     // Step 3: Fetch positions for these top traders in parallel
     const positionResults = await Promise.allSettled(
