@@ -465,13 +465,13 @@ function renderSmartPicks(data) {
   }
 
   strip.innerHTML = `
-    <span>Found <b>${traders.length}</b> traders with <b style="color:#00d4aa">≥75% win rate</b> this week.</span>
+    <span>Found <b>${traders.length}</b> traders with <b style="color:#00d4aa">&ge;75% win rate</b> this week.</span>
     <span style="margin-left:8px;padding:2px 8px;background:rgba(0,212,170,0.12);color:#00d4aa;border:1px solid rgba(0,212,170,0.3);border-radius:4px;font-size:0.75rem;font-weight:700;">🏆 Top ${traders.length} Qualified</span>
-    <span style="margin-left:8px;color:var(--text-dim)">— Found <b style="color:var(--accent)">${picks.length}</b> shared convictions with 2+ backers.</span>
+    <span style="margin-left:8px;color:var(--text-dim)">— Showing <b style="color:var(--accent)">${picks.length}</b> open bets.</span>
   `;
 
   if (picks.length === 0) {
-    grid.innerHTML = `<div style="text-align:center;color:var(--text-dim);grid-column:1/-1;padding:20px">No shared open markets found among top bettors. Try expanding the slider.</div>`;
+    grid.innerHTML = `<div style="text-align:center;color:var(--text-dim);grid-column:1/-1;padding:20px">No open picks found. Try expanding the slider.</div>`;
     return;
   }
 
@@ -499,10 +499,15 @@ function renderSmartPicks(data) {
           </div>
         </div>
         <div class="smart-endorsers">
-          <span class="smart-endorser-count">👥 ${p.endorserCount} top traders</span>
+          <span class="smart-endorser-count">👤 ${p.endorserCount} top trader${p.endorserCount > 1 ? 's' : ''}</span>
+          ${p.endorserCount > 1 ? `
+          <div style="margin-top:4px;font-size:0.7rem;color:var(--text-muted);margin-bottom:2px">🤝 Also bet by:</div>
           <div class="smart-avatars">
             ${p.endorsers.map(e => `<span class="smart-ava tooltip" data-tip="${escHtml(e.name)}: $${formatMoneyNumber(e.pnl)} PNL">${(e.name || 'U').slice(0, 2).toUpperCase()}</span>`).join('')}
-          </div>
+          </div>` : `
+          <div class="smart-avatars">
+            ${p.endorsers.map(e => `<span class="smart-ava tooltip" data-tip="${escHtml(e.name)}: $${formatMoneyNumber(e.pnl)} PNL">${(e.name || 'U').slice(0, 2).toUpperCase()}</span>`).join('')}
+          </div>`}
         </div>
       </div>
       <div class="smart-card-bot">

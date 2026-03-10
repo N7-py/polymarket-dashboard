@@ -335,11 +335,10 @@ async function fetchSmartPicks(topTradersCount = 10, timeline = 'all') {
       });
     });
 
-    // Step 5: Filter markets held by 2+ top traders, sort by endorser count
+    // Step 5: Show ALL picks from qualified traders, sorted so shared markets (2+ traders) come first
     const picks = [...marketMap.values()]
-      .filter(m => m.count >= 2)                                  // at least 2 smart traders agree
       .sort((a, b) => b.count - a.count || b.totalSize - a.totalSize)
-      .slice(0, 10)
+      .slice(0, 20)
       .map((m, idx) => ({
         rank: idx + 1,
         title: m.title,
@@ -348,7 +347,7 @@ async function fetchSmartPicks(topTradersCount = 10, timeline = 'all') {
         side: m.side || 'Buy',
         endDate: m.endDate || null,
         endorserCount: m.count,
-        endorsers: m.traders.slice(0, 5), // top 5 endorsing traders to show
+        endorsers: m.traders.slice(0, 5), // show up to 5 endorsing traders
         totalExposure: m.totalSize,
         avgProbability: m.count > 0 ? Math.round(m.probSum / m.count) : null,
       }));
