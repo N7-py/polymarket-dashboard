@@ -1441,6 +1441,8 @@ body::before {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
   cursor: pointer;
   background: linear-gradient(90deg, rgba(255, 215, 0, 0.05), transparent);
   transition: background 0.2s;
@@ -1453,6 +1455,7 @@ body::before {
 .smart-header-left {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
 }
 
