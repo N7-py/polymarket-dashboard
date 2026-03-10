@@ -324,7 +324,9 @@ async function fetchSmartPicks(topTradersCount = 10, timeline = 'all') {
   }
 }
 
-// Fetches positions for smart-picks (no limit, all open positions with positive value)
+// Fetches positions for smart-picks — uses endDate + curPrice directly from the Polymarket API.
+// INDEPENDENT VERIFICATION: curPrice near 0 or 1 means the market is settled (event already happened).
+// endDate from the API is used directly to filter past events. No cache lookups needed.
 async function fetchStreakPositions(address, timeline = 'all') {
   if (!address) return [];
   try {
@@ -333,52 +335,50 @@ async function fetchStreakPositions(address, timeline = 'all') {
       timeout: 10000, headers: { Accept: 'application/json' }
     });
     const rows = Array.isArray(res.data) ? res.data : (res.data.data || []);
-
-    // We must fetch the actual active markets to cross-reference End Dates,
-    // because the 'positions' API does NOT return market end dates itself.
-    let positions = rows.map(p => {
-      // Determine bet side — Polymarket positions are always "bought" shares
-      // The outcome tells us what was bought: Yes/No or a named outcome
-      const outcome = p.outcome || p.side || 'Yes';
-      return {
-        market: p.title || p.market || p.question || '',
-        outcome,
-        side: 'Buy',  // Polymarket positions are always Buy (long) positions
-        size: parseFloat(p.size) || parseFloat(p.currentValue) || 0,
-        curPrice: parseFloat(p.curPrice) || parseFloat(p.currentPrice) || 0,
-        marketUrl: p.eventSlug ? `https://polymarket.com/event/${p.eventSlug}` :
-          (p.slug ? `https://polymarket.com/event/${p.slug}` : null),
-      };
-    });
-
     const now = Date.now();
 
-    // Determine max delta based on timeline filter
+    // Determine max timeline window
     let maxDeltaMs = Infinity;
     if (timeline === '1d') maxDeltaMs = 86400000;
     else if (timeline === '1w') maxDeltaMs = 604800000;
     else if (timeline === '1m') maxDeltaMs = 2592000000;
 
-    positions = positions.filter(p => {
-      const cached = marketsCache.find(m => m.title === p.market);
-      // Strictly require the market to be in our active cache (which itself only has live/future events)
-      if (!cached) return false;
+    const positions = [];
 
-      // Always enrich position with endDate from our verified market cache
-      p.endDate = cached.endDate || null;
+    for (const p of rows) {
+      const curPrice = parseFloat(p.curPrice) || 0;
 
-      // ALWAYS filter out expired markets — even on 'all' timeline
-      if (cached.endDate) {
-        const ends = new Date(cached.endDate).getTime();
-        const timeRemaining = ends - now;
-        if (timeRemaining <= 0) return false;
+      // ── INDEPENDENT VERIFICATION ────────────────────────────────────────────
+      // Check 1: curPrice near 0 or 1 definitively means the market has SETTLED.
+      //   - curPrice → 1: the "Yes" outcome won (event happened, resolved YES)
+      //   - curPrice → 0: the "Yes" outcome lost (event happened, resolved NO)
+      //   Either way the real-world event is over. Skip it.
+      if (curPrice <= 0.03 || curPrice >= 0.97) continue;
 
-        // Apply timeline window filter if not 'all'
-        if (timeline !== 'all' && timeRemaining > maxDeltaMs) return false;
+      // Check 2: The Polymarket positions API provides endDate directly on each row.
+      //   If endDate is in the past, the event deadline has passed.
+      const endDateStr = p.endDate || null;
+      if (endDateStr) {
+        const endMs = new Date(endDateStr).getTime();
+        if (isNaN(endMs) || endMs <= now) continue;              // past → skip
+        if (timeline !== 'all' && (endMs - now) > maxDeltaMs) continue; // too far → skip
       }
 
-      return true;
-    });
+      // Check 3: Must have a meaningful market title
+      const market = (p.title || p.market || p.question || '').trim();
+      if (!market || market.length < 5) continue;
+
+      positions.push({
+        market,
+        outcome: p.outcome || 'Yes',
+        side: 'Buy',   // Polymarket positions are always long (Buy)
+        size: parseFloat(p.size) || parseFloat(p.currentValue) || 0,
+        curPrice,
+        endDate: endDateStr,
+        marketUrl: p.eventSlug ? `https://polymarket.com/event/${p.eventSlug}`
+          : (p.slug ? `https://polymarket.com/event/${p.slug}` : null),
+      });
+    }
 
     return positions;
   } catch { return []; }
